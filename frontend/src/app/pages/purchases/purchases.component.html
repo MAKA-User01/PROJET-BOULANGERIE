@@ -1,0 +1,153 @@
+<div class="page">
+  <header class="page-header">
+    <div>
+      <p class="eyebrow">Achats & fournisseurs</p>
+      <h1 class="page-title">Approvisionner <em>le fournil.</em></h1>
+      <p class="page-lead">Préparez, soumettez et suivez les commandes. Au-delà de {{ threshold | fcfa }}, le Manager valide ; les livraisons alimentent directement le stock.</p>
+    </div>
+    <div class="page-actions" *tmCan="'achats:preparer'">
+      <button type="button" class="btn btn-outline" (click)="editSupplier()"><svg tmIcon="plus"></svg> Fournisseur</button>
+      <button type="button" class="btn btn-primary" (click)="newOrder()"><svg tmIcon="cart"></svg> Nouvelle commande</button>
+    </div>
+  </header>
+
+  <div class="segmented" style="margin-bottom: 18px">
+    <button type="button" *ngIf="canSeeOrders" [class.is-active]="tab === 'commandes'" (click)="tab = 'commandes'">Commandes</button>
+    <button type="button" [class.is-active]="tab === 'fournisseurs'" (click)="tab = 'fournisseurs'">Fournisseurs</button>
+  </div>
+
+  <section class="card card--flush" *ngIf="tab === 'commandes' && canSeeOrders">
+    <div class="toolbar" style="padding-top: 18px">
+      <select class="select input-sm" style="width: auto" [(ngModel)]="status" aria-label="Filtrer par statut">
+        <option value="toutes">Tous les statuts</option>
+        <option *ngFor="let item of statusLabels | keyvalue" [value]="item.key">{{ item.value }}</option>
+      </select>
+      <span class="muted small">{{ orders.length }} commande(s)</span>
+    </div>
+    <div class="table-wrap">
+      <table class="table">
+        <thead><tr><th>N°</th><th>Fournisseur</th><th>Créée</th><th>Préparée par</th><th class="right">Montant</th><th>Statut</th><th>Règlement</th><th></th></tr></thead>
+        <tbody>
+          <tr *ngFor="let order of orders" (click)="open(order)" style="cursor: pointer">
+            <td class="mono strong">{{ order.numero }}</td>
+            <td>{{ supplierName(order.fournisseurId) }}</td>
+            <td>{{ order.creeLe | relative }}</td>
+            <td>{{ order.creePar | userName }}</td>
+            <td class="right num strong">{{ order.total | fcfa }}</td>
+            <td><span class="badge" [ngClass]="badge(order.statut)">{{ statusLabels[order.statut] }}</span></td>
+            <td><span *ngIf="order.statut === 'livree'" class="badge" [ngClass]="order.regle ? 'badge--success' : 'badge--folere'">{{ order.regle ? 'Réglée' : 'À régler' }}</span></td>
+            <td class="right"><svg tmIcon="chevron-right" class="muted"></svg></td>
+          </tr>
+          <tr *ngIf="!orders.length"><td colspan="8" class="table-empty">Aucune commande.</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section class="supplier-grid" *ngIf="tab === 'fournisseurs'">
+    <article class="card supplier-card" *ngFor="let supplier of purchases.suppliers">
+      <div class="row-between">
+        <span class="kpi-icon kpi-icon--indigo"><svg tmIcon="truck"></svg></span>
+        <span class="badge" [ngClass]="supplier.actif ? 'badge--success' : ''">{{ supplier.actif ? 'Actif' : 'Inactif' }}</span>
+      </div>
+      <div><h3 class="card-title">{{ supplier.nom }}</h3><p class="card-subtitle">{{ supplier.categorie }} · {{ supplierOrders(supplier) }} commande(s)</p></div>
+      <div class="contact">
+        <span><svg tmIcon="user"></svg>{{ supplier.contact || '—' }}</span>
+        <span><svg tmIcon="phone"></svg>{{ supplier.telephone }}</span>
+        <span *ngIf="auth.can('achats:lire') || auth.can('achats:preparer')"><svg tmIcon="info"></svg>{{ supplier.email || '—' }}</span>
+      </div>
+      <button type="button" class="btn btn-outline btn-sm" *tmCan="'achats:preparer'" (click)="editSupplier(supplier)"><svg tmIcon="edit"></svg> Modifier</button>
+    </article>
+  </section>
+</div>
+
+<!-- Détail de commande -->
+<tm-modal *ngIf="selected" [title]="selected.numero" [kicker]="supplierName(selected.fournisseurId)" [subtitle]="statusLabels[selected.statut] + ' · ' + (selected.total | fcfa)" [wide]="true" (closed)="selected = null">
+  <div class="grid grid-main">
+    <div>
+      <div class="table-wrap">
+        <table class="table">
+          <thead><tr><th>Article</th><th class="right">Qté</th><th class="right">P.U.</th><th class="right">Total</th></tr></thead>
+          <tbody>
+            <tr *ngFor="let line of selected.lignes"><td class="strong">{{ line.libelle }}</td><td class="right num">{{ line.quantite }}</td><td class="right num">{{ line.prixUnitaire | fcfa:false }}</td><td class="right num strong">{{ line.quantite * line.prixUnitaire | fcfa:false }}</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="alert alert--danger mt" *ngIf="selected.motifRejet"><svg tmIcon="alert"></svg><span><strong>Motif du rejet :</strong> {{ selected.motifRejet }}</span></div>
+      <label class="field mt" *ngIf="selected.statut === 'en_validation' && auth.can('achats:valider')">
+        <span>Motif en cas de rejet</span>
+        <textarea class="textarea" [(ngModel)]="motifRejet" placeholder="Obligatoire pour rejeter"></textarea>
+      </label>
+    </div>
+    <ol class="timeline">
+      <li class="done">Créée par {{ selected.creePar | userName }}<small>{{ selected.creeLe | relative }}</small></li>
+      <li [class.done]="selected.soumisLe">Soumise<small>{{ selected.soumisLe ? (selected.soumisLe | relative) : 'En attente' }}</small></li>
+      <li [class.done]="selected.valideLe && selected.statut !== 'rejetee'" [class.bad]="selected.statut === 'rejetee'">{{ selected.statut === 'rejetee' ? 'Rejetée' : 'Approuvée' }}<small>{{ selected.valideLe ? ((selected.validePar ? (selected.validePar | userName) : 'Automatique — sous le seuil') + ' · ' + (selected.valideLe | relative)) : '—' }}</small></li>
+      <li [class.done]="selected.livreLe">Livrée et entrée en stock<small>{{ selected.livreLe ? (selected.livreLe | relative) : (selected.livraisonPrevue ? 'Prévue le ' + (selected.livraisonPrevue | date:'d MMM') : '—') }}</small></li>
+      <li [class.done]="selected.regle">Réglée<small>{{ selected.regle ? 'Paiement effectué' : '—' }}</small></li>
+    </ol>
+  </div>
+  <div modal-footer>
+    <ng-container *ngIf="auth.can('achats:preparer')">
+      <button type="button" class="btn btn-danger" *ngIf="['brouillon', 'en_validation', 'approuvee'].includes(selected.statut)" (click)="act('cancel')">Annuler la commande</button>
+      <button type="button" class="btn btn-outline" *ngIf="selected.statut === 'brouillon'" (click)="editOrder(selected)"><svg tmIcon="edit"></svg> Modifier</button>
+      <button type="button" class="btn btn-primary" *ngIf="selected.statut === 'brouillon'" (click)="act('submit')">Soumettre</button>
+      <button type="button" class="btn btn-success" *ngIf="selected.statut === 'approuvee'" (click)="act('receive')"><svg tmIcon="truck"></svg> Réceptionner la livraison</button>
+    </ng-container>
+    <ng-container *ngIf="selected.statut === 'en_validation' && auth.can('achats:valider')">
+      <button type="button" class="btn btn-outline" [disabled]="!motifRejet.trim()" (click)="act('reject')">Rejeter</button>
+      <button type="button" class="btn btn-success" (click)="act('approve')"><svg tmIcon="check"></svg> Approuver</button>
+    </ng-container>
+    <button type="button" class="btn btn-ghost" (click)="selected = null">Fermer</button>
+  </div>
+</tm-modal>
+
+<!-- Éditeur de commande -->
+<tm-modal *ngIf="draft" [title]="draft.id ? 'Modifier le brouillon' : 'Nouvelle commande'" kicker="Bon de commande" [wide]="true" (closed)="draft = null">
+  <div class="form">
+    <div class="form-grid">
+      <label class="field"><span>Fournisseur</span><select class="select" [(ngModel)]="draft.fournisseurId"><option *ngFor="let supplier of purchases.suppliers" [value]="supplier.id" [disabled]="!supplier.actif">{{ supplier.nom }}</option></select></label>
+      <label class="field"><span>Livraison souhaitée</span><input class="input" type="date" [(ngModel)]="draft.livraisonPrevue"></label>
+    </div>
+    <div class="line-editor">
+      <div class="line-row head"><span>Article</span><span>Quantité</span><span>Prix unitaire</span><span class="right">Total</span><span></span></div>
+      <div class="line-row" *ngFor="let line of draft.lignes; let index = index">
+        <select class="select input-sm" [(ngModel)]="line.productId" (ngModelChange)="onProduct(line)" aria-label="Article"><option *ngFor="let product of products" [value]="product.id">{{ product.libelle }} ({{ product.unite }})</option></select>
+        <input class="input input-sm num" type="number" min="1" [(ngModel)]="line.quantite" aria-label="Quantité">
+        <input class="input input-sm num" type="number" min="1" [(ngModel)]="line.prixUnitaire" aria-label="Prix unitaire">
+        <strong class="num right">{{ (line.quantite || 0) * (line.prixUnitaire || 0) | fcfa:false }}</strong>
+        <button type="button" class="btn btn-ghost btn-icon btn-sm" (click)="removeLine(index)" [disabled]="draft.lignes.length === 1" aria-label="Supprimer la ligne"><svg tmIcon="close"></svg></button>
+      </div>
+      <button type="button" class="link-btn" style="align-self: flex-start" (click)="addLine()">+ Ajouter une ligne</button>
+    </div>
+    <div class="order-total"><span class="muted">Total de la commande</span><strong class="num">{{ draftTotal | fcfa }}</strong></div>
+    <div class="alert" [ngClass]="draftTotal >= threshold ? 'alert--warning' : 'alert--success'">
+      <svg [tmIcon]="draftTotal >= threshold ? 'stamp' : 'check'"></svg>
+      <span *ngIf="draftTotal >= threshold">Montant supérieur au seuil : la commande sera <strong>soumise au Manager</strong>.</span>
+      <span *ngIf="draftTotal < threshold">Sous le seuil de {{ threshold | fcfa }} : approbation automatique à la soumission.</span>
+    </div>
+  </div>
+  <div modal-footer>
+    <button type="button" class="btn btn-ghost" (click)="draft = null">Annuler</button>
+    <button type="button" class="btn btn-outline" (click)="saveOrder(false)">Enregistrer le brouillon</button>
+    <button type="button" class="btn btn-primary" (click)="saveOrder(true)">Soumettre <svg tmIcon="arrow-right"></svg></button>
+  </div>
+</tm-modal>
+
+<!-- Fournisseur -->
+<tm-modal *ngIf="supplierDraft" [title]="supplierDraft.id ? 'Modifier le fournisseur' : 'Nouveau fournisseur'" kicker="Fournisseurs" (closed)="supplierDraft = null">
+  <form class="form" id="supplier-form" (ngSubmit)="saveSupplier()">
+    <label class="field"><span>Raison sociale</span><input class="input" name="nom" [(ngModel)]="supplierDraft.nom" required></label>
+    <div class="form-grid">
+      <label class="field"><span>Contact</span><input class="input" name="contact" [(ngModel)]="supplierDraft.contact"></label>
+      <label class="field"><span>Téléphone</span><input class="input" name="telephone" [(ngModel)]="supplierDraft.telephone" placeholder="+237 …" required></label>
+      <label class="field"><span>E-mail</span><input class="input" type="email" name="email" [(ngModel)]="supplierDraft.email"></label>
+      <label class="field"><span>Catégorie</span><select class="select" name="categorie" [(ngModel)]="supplierDraft.categorie"><option>Farines</option><option>Produits laitiers</option><option>Produits frais</option><option>Épicerie</option><option>Emballages</option></select></label>
+    </div>
+    <label class="check"><input type="checkbox" name="actif" [(ngModel)]="supplierDraft.actif"> Fournisseur actif</label>
+  </form>
+  <div modal-footer>
+    <button type="button" class="btn btn-ghost" (click)="supplierDraft = null">Annuler</button>
+    <button type="submit" form="supplier-form" class="btn btn-primary">Enregistrer</button>
+  </div>
+</tm-modal>

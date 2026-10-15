@@ -1,0 +1,168 @@
+<div class="login">
+  <!-- ============ Récit de marque ============ -->
+  <section class="story" aria-hidden="false">
+    <div class="story-grain" aria-hidden="true"></div>
+    <header class="story-top">
+      <tm-logo [light]="true"></tm-logo>
+      <span class="story-place"><span class="live-dot"></span> Douala · Fournil ouvert</span>
+    </header>
+
+    <div class="story-body">
+      <p class="story-kicker">Système de gestion</p>
+      <h1 class="story-title">Chaque fournée,<br><em>sous contrôle.</em></h1>
+      <p class="story-lead">Caisse, stocks, achats, trésorerie et comptabilité réunis dans un même espace. Chacun y retrouve exactement ce que son rôle lui confie.</p>
+    </div>
+
+    <div class="story-art" aria-hidden="true">
+      <svg viewBox="0 0 520 380" class="loaf-art">
+        <defs>
+          <radialGradient id="glow" cx="50%" cy="55%" r="50%">
+            <stop offset="0" stop-color="#f2b15c" stop-opacity=".55"/>
+            <stop offset=".55" stop-color="#c4571b" stop-opacity=".18"/>
+            <stop offset="1" stop-color="#c4571b" stop-opacity="0"/>
+          </radialGradient>
+          <linearGradient id="crust" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0" stop-color="#e79a4a"/>
+            <stop offset=".55" stop-color="#b8561c"/>
+            <stop offset="1" stop-color="#7a3410"/>
+          </linearGradient>
+          <linearGradient id="score" x1="0" y1="0" x2="1" y2="1">
+            <stop offset="0" stop-color="#fde7bf"/>
+            <stop offset="1" stop-color="#f0c27c"/>
+          </linearGradient>
+          <linearGradient id="board" x1="0" y1="0" x2="1" y2="0">
+            <stop offset="0" stop-color="#3b2619"/>
+            <stop offset="1" stop-color="#2a1a11"/>
+          </linearGradient>
+        </defs>
+        <circle cx="260" cy="200" r="190" fill="url(#glow)"/>
+        <circle cx="260" cy="200" r="132" fill="none" stroke="#f2c76a" stroke-opacity=".14" stroke-dasharray="2 9"/>
+        <circle cx="260" cy="200" r="168" fill="none" stroke="#f2c76a" stroke-opacity=".08"/>
+        <ellipse cx="260" cy="300" rx="190" ry="26" fill="url(#board)"/>
+        <ellipse cx="260" cy="292" rx="150" ry="14" fill="#000" opacity=".28"/>
+        <path d="M108 262c-8-62 58-128 152-128s160 66 152 128c-3 22-24 34-60 36H168c-36-2-57-14-60-36Z" fill="url(#crust)"/>
+        <path d="M128 250c4-48 60-98 132-98" fill="none" stroke="#f6c98a" stroke-opacity=".35" stroke-width="5" stroke-linecap="round"/>
+        <path d="M168 214c18-30 40-44 66-52" stroke="url(#score)" stroke-width="11" stroke-linecap="round" fill="none"/>
+        <path d="M214 244c22-40 52-62 88-72" stroke="url(#score)" stroke-width="11" stroke-linecap="round" fill="none"/>
+        <path d="M272 268c20-32 46-52 78-62" stroke="url(#score)" stroke-width="10" stroke-linecap="round" fill="none"/>
+        <g stroke="#f2c76a" stroke-width="2.4" stroke-linecap="round" fill="none" opacity=".9">
+          <path d="M438 286V156"/>
+          <path d="M438 176c-12-3-17-13-17-25 12 3 17 13 17 25Zm0 0c12-3 17-13 17-25-12 3-17 13-17 25Zm0 26c-12-3-18-12-19-24 12 2 18 12 19 24Zm0 0c12-3 18-12 19-24-12 2-18 12-19 24Zm0 26c-12-3-18-12-19-24 12 2 18 12 19 24Zm0 0c12-3 18-12 19-24-12 2-18 12-19 24Z"/>
+          <path d="M466 290V190" opacity=".55"/>
+          <path d="M466 206c-9-2-13-10-13-19 9 2 13 10 13 19Zm0 0c9-2 13-10 13-19-9 2-13 10-13 19Zm0 21c-9-2-14-9-15-18 9 2 14 9 15 18Zm0 0c9-2 14-9 15-18-9 2-14 9-15 18Z" opacity=".55"/>
+        </g>
+        <g fill="#fbd79a">
+          <circle cx="96" cy="120" r="2"/><circle cx="130" cy="84" r="1.4"/><circle cx="404" cy="96" r="1.8"/><circle cx="356" cy="64" r="1.2"/><circle cx="80" cy="190" r="1.2"/>
+        </g>
+      </svg>
+
+      <div class="float-card float-card--a">
+        <span class="float-icon"><svg tmIcon="cash"></svg></span>
+        <span><strong>Caisse 1 ouverte</strong><small>Fond vérifié · 06:30</small></span>
+      </div>
+      <div class="float-card float-card--b">
+        <span class="float-icon float-icon--green"><svg tmIcon="shield"></svg></span>
+        <span><strong>Action tracée</strong><small>Journal d’audit scellé</small></span>
+      </div>
+    </div>
+
+    <ul class="story-points">
+      <li><svg tmIcon="key"></svg><span><strong>Accès par rôle</strong>Refus par défaut, moindre privilège</span></li>
+      <li><svg tmIcon="history"></svg><span><strong>Tout est tracé</strong>Chaque opération sensible est journalisée</span></li>
+      <li><svg tmIcon="database"></svg><span><strong>100 % local</strong>Fonctionne sans Internet</span></li>
+    </ul>
+  </section>
+
+  <!-- ============ Formulaire ============ -->
+  <section class="panel">
+    <div class="panel-inner">
+      <div class="panel-logo"><tm-logo></tm-logo></div>
+
+      <ng-container *ngIf="step === 'credentials'; else mfaStep">
+        <p class="eyebrow">Connexion</p>
+        <h2 class="panel-title">Bon retour<br>au fournil.</h2>
+        <p class="panel-lead">Identifiez-vous avec le compte individuel remis par votre manager.</p>
+
+        <div class="alert alert--warning" *ngIf="expired && !error" role="status">
+          <svg tmIcon="clock"></svg><span>Votre session a expiré après une période d’inactivité. Reconnectez-vous pour continuer.</span>
+        </div>
+        <div class="alert alert--danger" *ngIf="error" role="alert">
+          <svg tmIcon="alert"></svg><span>{{ error }}</span>
+        </div>
+
+        <form class="form login-form" (ngSubmit)="submit()" autocomplete="on" novalidate>
+          <label class="field">
+            <span>Identifiant</span>
+            <div class="input-group">
+              <svg tmIcon="user"></svg>
+              <input class="input input-lg" name="username" autocomplete="username" [(ngModel)]="identifiant" placeholder="ex. c.ekambi" autocapitalize="none" spellcheck="false" required>
+            </div>
+          </label>
+
+          <label class="field">
+            <span class="row-between">Mot de passe <span class="field-hint">Strictement personnel</span></span>
+            <div class="input-group">
+              <svg tmIcon="lock"></svg>
+              <input #passwordInput class="input input-lg" name="password" autocomplete="current-password" [type]="showPassword ? 'text' : 'password'" [(ngModel)]="password" (keydown)="detectCaps($event)" (keyup)="detectCaps($event)" placeholder="••••••••••" required>
+              <button type="button" class="btn btn-ghost btn-icon btn-sm input-suffix" [attr.aria-label]="showPassword ? 'Masquer le mot de passe' : 'Afficher le mot de passe'" (click)="showPassword = !showPassword">
+                <svg [tmIcon]="showPassword ? 'eye-off' : 'eye'"></svg>
+              </button>
+            </div>
+            <span class="caps" *ngIf="capsLock"><svg tmIcon="alert"></svg> Verrouillage majuscule activé</span>
+          </label>
+
+          <button type="submit" class="btn btn-primary btn-lg btn-block" [disabled]="loading">
+            <span class="spinner" *ngIf="loading"></span>
+            {{ loading ? 'Vérification…' : 'Se connecter' }}
+            <svg tmIcon="arrow-right" *ngIf="!loading"></svg>
+          </button>
+          <p class="help">Mot de passe oublié ou compte bloqué ? Adressez-vous à votre manager ou à l’administrateur technique.</p>
+        </form>
+
+        <div class="demo" *ngIf="demo">
+          <div class="demo-head">
+            <span class="demo-tag">Démo</span>
+            <p>Choisissez un rôle pour pré-remplir — mot de passe <code>{{ demoPassword }}</code></p>
+          </div>
+          <div class="demo-grid">
+            <button type="button" class="demo-account" *ngFor="let account of demoAccounts" [ngClass]="'tone-' + account.role.tone" [class.is-selected]="identifiant === account.identifiant" (click)="fill(account.identifiant)">
+              <span class="demo-dot"></span>
+              <span><strong>{{ account.role.label }}</strong><small>{{ account.identifiant }}</small></span>
+              <svg tmIcon="fingerprint" *ngIf="account.role.privileged" title="Double vérification"></svg>
+            </button>
+          </div>
+        </div>
+      </ng-container>
+
+      <ng-template #mfaStep>
+        <button type="button" class="link-btn back" (click)="back()"><svg tmIcon="arrow-left"></svg> Changer de compte</button>
+        <span class="mfa-badge"><svg tmIcon="fingerprint"></svg></span>
+        <p class="eyebrow">Double vérification</p>
+        <h2 class="panel-title">Confirmez<br>votre identité.</h2>
+        <p class="panel-lead">Votre rôle donne accès à des opérations sensibles. Saisissez le code à 6 chiffres envoyé sur votre téléphone enregistré.</p>
+
+        <div class="alert alert--info" *ngIf="demo">
+          <svg tmIcon="info"></svg><span>Mode démonstration — code reçu : <strong class="mono code-demo">{{ demoCode }}</strong></span>
+        </div>
+        <div class="alert alert--danger" *ngIf="error" role="alert"><svg tmIcon="alert"></svg><span>{{ error }}</span></div>
+
+        <form class="form" (ngSubmit)="verify()">
+          <label class="field">
+            <span class="sr-only">Code de vérification</span>
+            <div class="code-boxes" (click)="codeInput.focus()">
+              <span class="code-box" *ngFor="let slot of [0, 1, 2, 3, 4, 5]" [class.is-filled]="code.length > slot" [class.is-current]="code.length === slot">{{ code.charAt(slot) }}</span>
+              <input #codeInput class="code-input" name="code" inputmode="numeric" autocomplete="one-time-code" maxlength="6" [ngModel]="code" (ngModelChange)="onCodeInput($event)" aria-label="Code à 6 chiffres">
+            </div>
+          </label>
+          <button type="submit" class="btn btn-primary btn-lg btn-block" [disabled]="code.length !== 6 || loading">
+            <span class="spinner" *ngIf="loading"></span>
+            {{ loading ? 'Vérification…' : 'Valider et entrer' }}
+          </button>
+          <p class="help">Le code expire au bout de 5 minutes. Trois essais au maximum.</p>
+        </form>
+      </ng-template>
+
+      <footer class="panel-foot">© {{ year }} TAMMAK · Données hébergées sur le serveur local de la boulangerie</footer>
+    </div>
+  </section>
+</div>

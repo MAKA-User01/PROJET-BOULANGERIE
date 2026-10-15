@@ -1,0 +1,154 @@
+<div class="page">
+  <section class="hero" [ngClass]="'tone-' + role.tone">
+    <div class="hero-copy">
+      <span class="role-chip hero-chip">{{ role.label }}</span>
+      <h1 class="hero-title">{{ greeting }}, <em>{{ auth.user?.prenom }}.</em></h1>
+      <p class="hero-text">{{ heroCopy.text }}</p>
+      <a *ngIf="heroCopy.cta as cta" class="btn btn-primary hero-cta" [routerLink]="cta.link"><svg [tmIcon]="cta.icon"></svg>{{ cta.label }}<svg tmIcon="arrow-right"></svg></a>
+    </div>
+    <div class="hero-art" aria-hidden="true">
+      <div class="hero-ring"></div>
+      <div class="hero-ring hero-ring--2"></div>
+      <svg tmIcon="wheat" class="hero-wheat"></svg>
+    </div>
+  </section>
+
+  <section class="grid grid-4 kpis">
+    <a class="card kpi kpi-card" *ngFor="let kpi of kpis; trackBy: trackByIndex" [routerLink]="kpi.link || null" [class.is-link]="kpi.link">
+      <div class="kpi-top"><span class="kpi-label">{{ kpi.label }}</span><span class="kpi-icon" [ngClass]="'kpi-icon--' + kpi.tone"><svg [tmIcon]="kpi.icon"></svg></span></div>
+      <div class="kpi-value">{{ kpi.value }}<small *ngIf="kpi.unit">{{ kpi.unit }}</small></div>
+      <div class="kpi-foot">{{ kpi.foot }}</div>
+    </a>
+  </section>
+
+  <section class="grid grid-main mt" *ngIf="showSalesChart">
+    <article class="card">
+      <header class="card-header">
+        <div>
+          <p class="card-kicker">Ventes · 14 derniers jours</p>
+          <h2 class="card-title">Chiffre d’affaires quotidien</h2>
+        </div>
+        <div class="chart-total"><strong class="num">{{ fortnightTotal | fcfa:false }}</strong><span>FCFA cumulés</span></div>
+      </header>
+      <div class="chart" role="img" aria-label="Histogramme du chiffre d’affaires des 14 derniers jours">
+        <div class="chart-axis"><span *ngFor="let tick of axis; trackBy: trackByIndex">{{ axisLabel(tick) }}</span></div>
+        <div class="chart-plot">
+          <div class="chart-grid"><i *ngFor="let tick of axis; trackBy: trackByIndex"></i></div>
+          <div class="chart-bars">
+            <div class="chart-col" *ngFor="let bar of bars; let index = index; trackBy: trackByIndex" [class.is-today]="bar.today" (mouseenter)="hoveredIndex = index" (mouseleave)="hoveredIndex = null" (focus)="hoveredIndex = index" (blur)="hoveredIndex = null" tabindex="0" [attr.aria-label]="barTitle(bar)">
+              <div class="chart-bar-wrap">
+                <div class="chart-tip" *ngIf="hoveredIndex === index">
+                  <span>{{ bar.date }}</span>
+                  <strong>{{ bar.total | fcfa }}</strong>
+                  <small>{{ bar.tickets }} tickets</small>
+                </div>
+                <i class="chart-bar" [style.height.%]="bar.height"></i>
+              </div>
+              <span class="chart-label">{{ bar.today ? 'Auj.' : bar.label }}</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </article>
+
+    <article class="card">
+      <header class="card-header">
+        <div>
+          <p class="card-kicker">Les stars du fournil</p>
+          <h2 class="card-title">Meilleures ventes · 7 jours</h2>
+        </div>
+      </header>
+      <div class="top-list">
+        <div class="top-item" *ngFor="let product of topProducts; let index = index; trackBy: trackByIndex">
+          <span class="top-rank">{{ index + 1 }}</span>
+          <div class="top-body">
+            <div class="row-between"><strong>{{ product.libelle }}</strong><span class="num muted small">{{ product.quantite }} vendus</span></div>
+            <div class="progress"><i [style.width.%]="product.share"></i></div>
+          </div>
+        </div>
+      </div>
+    </article>
+  </section>
+
+  <section class="grid grid-2 mt">
+    <article class="card card--flush" *tmCan="['stocks:lire', 'stocks:lire_limite']">
+      <header class="card-header">
+        <div>
+          <p class="card-kicker">Réserves</p>
+          <h2 class="card-title">À surveiller en stock</h2>
+        </div>
+        <a class="link-btn" routerLink="/app/stocks">Tous les stocks →</a>
+      </header>
+      <div class="table-wrap">
+        <table class="table">
+          <tbody>
+            <tr *ngFor="let product of alerts.slice(0, 5)">
+              <td>
+                <div class="cell-main">
+                  <span class="thumb" [class.thumb--matiere]="product.type === 'matiere'"><svg [tmIcon]="product.type === 'matiere' ? 'wheat' : 'bread'"></svg></span>
+                  <span><strong>{{ product.libelle }}</strong><small>{{ product.reference }}</small></span>
+                </div>
+              </td>
+              <td class="right num"><strong>{{ product.stock }}</strong> <span class="muted small">/ seuil {{ product.seuil }} {{ product.unite }}</span></td>
+              <td class="right"><span class="badge" [ngClass]="product.stock <= product.seuil / 2 ? 'badge--danger' : 'badge--warning'">{{ product.stock <= product.seuil / 2 ? 'Critique' : 'Faible' }}</span></td>
+            </tr>
+            <tr *ngIf="!alerts.length"><td class="table-empty" colspan="3">Tous les stocks sont au-dessus de leur seuil. 👌</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </article>
+
+    <article class="card" *tmCan="['achats:preparer', 'achats:valider']">
+      <header class="card-header">
+        <div>
+          <p class="card-kicker">Approvisionnement</p>
+          <h2 class="card-title">Circuit des commandes</h2>
+        </div>
+        <a class="link-btn" routerLink="/app/achats">Voir les achats →</a>
+      </header>
+      <div class="pipeline">
+        <div class="pipeline-step" *ngFor="let step of pipeline; let last = last; trackBy: trackByIndex">
+          <span class="pipeline-count num">{{ step.count }}</span>
+          <strong>{{ step.label }}</strong>
+          <small class="num">{{ step.amount | fcfa }}</small>
+          <svg tmIcon="chevron-right" class="pipeline-arrow" *ngIf="!last"></svg>
+        </div>
+      </div>
+    </article>
+
+    <article class="card" *tmCan="'tresorerie:lire'">
+      <header class="card-header">
+        <div>
+          <p class="card-kicker">Trésorerie</p>
+          <h2 class="card-title">Soldes des comptes</h2>
+        </div>
+        <a class="link-btn" routerLink="/app/tresorerie">Détails →</a>
+      </header>
+      <div class="list">
+        <div class="list-item" *ngFor="let account of finance.accounts">
+          <span class="kpi-icon" [ngClass]="account.type === 'banque' ? 'kpi-icon--indigo' : account.type === 'mobile' ? 'kpi-icon--okok' : 'kpi-icon--gold'"><svg [tmIcon]="account.type === 'caisse' ? 'cash' : account.type === 'banque' ? 'store' : 'phone'"></svg></span>
+          <div class="list-item-body"><strong>{{ account.libelle }}</strong><small>Compte {{ account.compteComptable }}</small></div>
+          <strong class="num">{{ account.solde | fcfa }}</strong>
+        </div>
+      </div>
+    </article>
+
+    <article class="card">
+      <header class="card-header">
+        <div>
+          <p class="card-kicker">{{ auth.can('journaux:technique') || auth.can('journaux:synthese') ? 'Journal d’audit' : 'Vos dernières actions' }}</p>
+          <h2 class="card-title">Activité récente</h2>
+        </div>
+        <a class="link-btn" routerLink="/app/journaux" *tmCan="['journaux:synthese', 'journaux:technique']">Journal complet →</a>
+      </header>
+      <div class="list" *ngIf="recentActivity.length; else noActivity">
+        <div class="list-item" *ngFor="let log of recentActivity">
+          <span class="dot" [ngClass]="'dot--' + log.resultat"></span>
+          <div class="list-item-body"><strong>{{ log.action }}</strong><small>{{ log.identifiant }} · {{ log.ressource }}<ng-container *ngIf="log.objet"> · {{ log.objet }}</ng-container></small></div>
+          <span class="muted small nowrap">{{ log.date | relative }}</span>
+        </div>
+      </div>
+      <ng-template #noActivity><tm-empty icon="history" title="Rien pour l’instant" text="Vos opérations apparaîtront ici."></tm-empty></ng-template>
+    </article>
+  </section>
+</div>

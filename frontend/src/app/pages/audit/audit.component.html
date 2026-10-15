@@ -1,0 +1,64 @@
+<div class="page">
+  <header class="page-header">
+    <div>
+      <p class="eyebrow">Journaux d’audit</p>
+      <h1 class="page-title">Rien ne se perd, <em>tout se trace.</em></h1>
+      <p class="page-lead">{{ technical ? 'Consultation technique complète.' : 'Synthèse des événements de sécurité et des opérations sensibles.' }} Le journal est en ajout seul et chaîné par empreintes SHA-256 : aucune trace ne peut être modifiée ni supprimée depuis l’application.</p>
+    </div>
+    <div class="page-actions">
+      <button type="button" class="btn btn-outline" (click)="verify()"><svg tmIcon="shield"></svg> Vérifier l’intégrité</button>
+      <button type="button" class="btn btn-dark" *ngIf="technical" (click)="export()"><svg tmIcon="download"></svg> Exporter</button>
+    </div>
+  </header>
+
+  <div class="card integrity" *ngIf="integrity" style="margin-bottom: 18px">
+    <span class="kpi-icon" [ngClass]="integrity.ok ? 'kpi-icon--okok' : 'kpi-icon--folere'"><svg [tmIcon]="integrity.ok ? 'check' : 'alert'"></svg></span>
+    <div>
+      <strong>{{ integrity.ok ? 'Chaîne d’empreintes intacte' : 'Altération détectée à la trace n°' + integrity.brokenAt }}</strong>
+      <p class="muted small">Contrôle effectué à {{ integrity.checkedAt | date:'HH:mm:ss' }} sur {{ technical ? 'l’ensemble du journal' : 'la totalité des traces' }}.</p>
+    </div>
+  </div>
+
+  <section class="grid grid-4" style="margin-bottom: 18px">
+    <div class="card kpi"><span class="kpi-label">Événements · 7 jours</span><div class="kpi-value">{{ stats.total }}</div><span class="kpi-foot">{{ technical ? 'Toutes ressources' : 'Périmètre de synthèse' }}</span></div>
+    <div class="card kpi"><span class="kpi-label">Connexions réussies</span><div class="kpi-value">{{ stats.connexions }}</div><span class="kpi-foot">Comptes individuels</span></div>
+    <div class="card kpi"><span class="kpi-label">Échecs</span><div class="kpi-value" style="color: var(--gold-700)">{{ stats.echecs }}</div><span class="kpi-foot">Identifiants invalides, codes erronés…</span></div>
+    <div class="card kpi"><span class="kpi-label">Accès refusés</span><div class="kpi-value" style="color: var(--danger-500)">{{ stats.refus }}</div><span class="kpi-foot">Tentatives hors permissions</span></div>
+  </section>
+
+  <section class="card card--flush">
+    <div class="toolbar" style="padding-top: 18px">
+      <div class="input-group"><svg tmIcon="search"></svg><input class="input input-sm" [(ngModel)]="search" placeholder="Compte, action, objet…"></div>
+      <div class="row" style="flex-wrap: wrap">
+        <select class="select input-sm" style="width: auto" [(ngModel)]="ressource" aria-label="Ressource"><option value="toutes">Toutes ressources</option><option *ngFor="let item of ressources" [value]="item">{{ item }}</option></select>
+        <div class="segmented">
+          <button type="button" [class.is-active]="result === 'tous'" (click)="result = 'tous'">Tous</button>
+          <button type="button" [class.is-active]="result === 'echec'" (click)="result = 'echec'">Échecs</button>
+          <button type="button" [class.is-active]="result === 'refus'" (click)="result = 'refus'">Refus</button>
+        </div>
+      </div>
+    </div>
+    <div class="table-wrap">
+      <table class="table">
+        <thead><tr><th>#</th><th>Horodatage</th><th>Compte</th><th>Action</th><th>Ressource</th><th>Résultat</th><th>Motif / détails</th><th *ngIf="technical">Empreinte</th></tr></thead>
+        <tbody>
+          <tr *ngFor="let log of logs.slice(0, limit)">
+            <td class="mono muted">{{ log.seq }}</td>
+            <td style="white-space: nowrap">{{ log.date | date:'dd/MM/yy HH:mm:ss' }}</td>
+            <td><strong class="mono">{{ log.identifiant }}</strong><br><small class="muted">{{ log.role | role }}</small></td>
+            <td class="strong">{{ log.action }}<br><small class="muted" *ngIf="log.objet">{{ log.objet }}</small></td>
+            <td>{{ log.ressource }}</td>
+            <td><span class="badge" [ngClass]="badge(log.resultat)">{{ label(log.resultat) }}</span></td>
+            <td class="details">{{ log.motif }}<ng-container *ngIf="log.motif && log.details"> — </ng-container>{{ log.details }}</td>
+            <td *ngIf="technical"><span class="mono hash" [title]="log.hash">{{ log.hash.slice(0, 12) }}…</span></td>
+          </tr>
+          <tr *ngIf="!logs.length"><td colspan="8" class="table-empty">Aucune trace pour ces critères.</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="toolbar" style="padding-top: 14px" *ngIf="logs.length > limit">
+      <span class="muted small">{{ limit }} sur {{ logs.length }}</span>
+      <button type="button" class="btn btn-outline btn-sm" (click)="limit = limit + 60">Afficher plus</button>
+    </div>
+  </section>
+</div>

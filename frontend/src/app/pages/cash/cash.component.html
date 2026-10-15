@@ -1,0 +1,206 @@
+<!-- ============ Caisse fermée : ouverture ============ -->
+<div class="page" *ngIf="!session; else pos">
+  <header class="page-header">
+    <div>
+      <p class="eyebrow">Caisse</p>
+      <h1 class="page-title">Ouvrons <em>la caisse.</em></h1>
+      <p class="page-lead">Comptez votre fond de caisse et choisissez votre poste. L’ouverture est horodatée et rattachée à votre compte.</p>
+    </div>
+  </header>
+
+  <div class="grid grid-main">
+    <form class="card open-card" (ngSubmit)="open()">
+      <div class="open-icon"><svg tmIcon="cash"></svg></div>
+      <h2 class="card-title">Nouvelle session de caisse</h2>
+      <p class="card-subtitle">Une seule caisse ouverte par caissier et par poste.</p>
+      <div class="form mt">
+        <div class="field">
+          <span>Poste de caisse</span>
+          <div class="poste-grid">
+            <button type="button" class="poste" *ngFor="let item of postes" [class.is-active]="poste === item" [disabled]="occupiedPostes.includes(item)" (click)="poste = item">
+              <svg tmIcon="store"></svg>
+              <strong>{{ item.split(' — ')[0] }}</strong>
+              <small>{{ occupiedPostes.includes(item) ? 'Occupé' : item.split(' — ')[1] }}</small>
+            </button>
+          </div>
+        </div>
+        <label class="field">
+          <span>Fond de caisse initial (FCFA)</span>
+          <input class="input input-xl num" type="number" min="0" step="500" name="fond" [(ngModel)]="fondInitial" required>
+          <span class="field-hint">Montant en espèces présent dans le tiroir à l’ouverture.</span>
+        </label>
+        <button type="submit" class="btn btn-primary btn-lg" [disabled]="fondInitial === null || fondInitial < 0">Ouvrir la caisse <svg tmIcon="arrow-right"></svg></button>
+      </div>
+    </form>
+
+    <aside class="card card--cream">
+      <p class="card-kicker">Rappel de procédure</p>
+      <h2 class="card-title">Bonnes pratiques</h2>
+      <ol class="steps">
+        <li><strong>Comptez le fond</strong> à deux si possible, avant l’ouverture.</li>
+        <li><strong>Encaissez</strong> chaque vente immédiatement et remettez le reçu.</li>
+        <li><strong>Annulations</strong> : faites une demande motivée, le Manager valide.</li>
+        <li><strong>Clôturez</strong> en comptant les espèces : l’écart est calculé et tracé.</li>
+      </ol>
+    </aside>
+  </div>
+</div>
+
+<!-- ============ Point de vente ============ -->
+<ng-template #pos>
+  <div class="pos" *ngIf="session as current">
+    <section class="pos-catalog">
+      <header class="pos-head">
+        <div>
+          <p class="eyebrow">{{ current.poste }}</p>
+          <h1 class="page-title pos-title">Point de vente</h1>
+        </div>
+        <div class="session-stats">
+          <div><small>Ouverte</small><strong>{{ current.ouverture | date:'HH:mm' }}</strong></div>
+          <div><small>Tickets</small><strong class="num">{{ sessionSales.length }}</strong></div>
+          <div><small>Encaissé</small><strong class="num">{{ sessionTotal | fcfa }}</strong></div>
+          <button type="button" class="btn btn-dark btn-sm" (click)="startClosing()"><svg tmIcon="lock"></svg> Clôturer</button>
+        </div>
+      </header>
+
+      <div class="pos-filters">
+        <div class="segmented">
+          <button type="button" *ngFor="let item of categories" [class.is-active]="category === item" (click)="category = item">{{ item }}</button>
+        </div>
+        <div class="input-group search">
+          <svg tmIcon="search"></svg>
+          <input class="input" [(ngModel)]="search" placeholder="Rechercher un produit…" aria-label="Rechercher un produit">
+        </div>
+      </div>
+
+      <div class="product-grid">
+        <button type="button" class="product-tile" *ngFor="let product of products" (click)="add(product)" [disabled]="product.stock - inCart(product) <= 0" [class.in-cart]="inCart(product)">
+          <span class="tile-qty" *ngIf="inCart(product)">{{ inCart(product) }}</span>
+          <span class="tile-icon" [ngClass]="'tile-icon--' + product.categorie.charAt(0)"><svg tmIcon="bread"></svg></span>
+          <strong>{{ product.libelle }}</strong>
+          <span class="tile-foot">
+            <span class="tile-price num">{{ product.prix | fcfa }}</span>
+            <small [class.low]="product.stock <= product.seuil">{{ product.stock - inCart(product) > 0 ? (product.stock - inCart(product)) + ' dispo.' : 'Épuisé' }}</small>
+          </span>
+        </button>
+        <tm-empty *ngIf="!products.length" icon="search" title="Aucun produit" text="Essayez une autre catégorie ou recherche."></tm-empty>
+      </div>
+    </section>
+
+    <aside class="ticket">
+      <header class="ticket-head">
+        <div><p class="card-kicker">Ticket en cours</p><h2 class="card-title">{{ itemCount }} article{{ itemCount > 1 ? 's' : '' }}</h2></div>
+        <button type="button" class="btn btn-ghost btn-sm" (click)="clear()" [disabled]="!cart.length">Vider</button>
+      </header>
+
+      <div class="ticket-lines">
+        <div class="ticket-line" *ngFor="let line of cart">
+          <div class="ticket-line-body"><strong>{{ line.product.libelle }}</strong><small class="num">{{ line.product.prix | fcfa }} / {{ line.product.unite }}</small></div>
+          <div class="stepper">
+            <button type="button" (click)="change(line, -1)" aria-label="Retirer une unité"><svg tmIcon="minus"></svg></button>
+            <span class="num">{{ line.quantite }}</span>
+            <button type="button" (click)="change(line, 1)" [disabled]="line.quantite >= line.product.stock" aria-label="Ajouter une unité"><svg tmIcon="plus"></svg></button>
+          </div>
+          <strong class="num line-total">{{ line.product.prix * line.quantite | fcfa:false }}</strong>
+        </div>
+        <div class="ticket-empty" *ngIf="!cart.length">
+          <svg tmIcon="receipt"></svg>
+          <span>Touchez un produit pour l’ajouter au ticket.</span>
+        </div>
+      </div>
+
+      <div class="ticket-pay">
+        <div class="row-between remise">
+          <label for="remise">Remise <span class="muted small">(max {{ maxRemise }} %)</span></label>
+          <div class="input-group remise-input">
+            <input id="remise" class="input input-sm num" type="number" min="0" [max]="maxRemise" [(ngModel)]="remisePct">
+            <span class="suffix">%</span>
+          </div>
+        </div>
+        <p class="error-text" *ngIf="remisePct > maxRemise">Remise supérieure au maximum autorisé pour votre rôle.</p>
+
+        <div class="modes">
+          <button type="button" class="mode" *ngFor="let mode of modes" [class.is-active]="paiement === mode[0]" (click)="paiement = mode[0]">
+            <span class="mode-dot" [ngClass]="'mode-dot--' + mode[0]"></span>{{ mode[1] }}
+          </button>
+        </div>
+
+        <div class="cash-in" *ngIf="paiement === 'especes' && cart.length">
+          <label class="field">
+            <span>Montant reçu</span>
+            <input class="input num" type="number" min="0" step="25" [(ngModel)]="montantRecu" placeholder="0">
+          </label>
+          <div class="quick">
+            <button type="button" class="btn btn-outline btn-xs num" *ngFor="let amount of quickAmounts" (click)="montantRecu = amount">{{ amount | fcfa:false }}</button>
+          </div>
+          <div class="change" *ngIf="montantRecu !== null && montantRecu >= total">Monnaie à rendre <strong class="num">{{ rendu | fcfa }}</strong></div>
+        </div>
+
+        <dl class="totals">
+          <div><dt>Sous-total</dt><dd class="num">{{ sousTotal | fcfa }}</dd></div>
+          <div *ngIf="remise"><dt>Remise</dt><dd class="num">− {{ remise | fcfa }}</dd></div>
+          <div class="grand"><dt>Total</dt><dd class="num">{{ total | fcfa }}</dd></div>
+        </dl>
+
+        <button type="button" class="btn btn-primary btn-lg btn-block" [disabled]="!canCheckout" (click)="checkout()">
+          Encaisser {{ total | fcfa }} <span class="kbd">F9</span>
+        </button>
+      </div>
+    </aside>
+  </div>
+</ng-template>
+
+<!-- ============ Reçu ============ -->
+<tm-modal *ngIf="receipt" title="Vente enregistrée" kicker="Reçu" (closed)="receipt = null">
+  <div class="receipt print-area">
+    <div class="receipt-head">
+      <strong>TAMMAK</strong>
+      <span>Boulangerie · Pâtisserie — Douala</span>
+      <span>{{ receipt.numero }} · {{ receipt.date | date:'dd/MM/yyyy HH:mm' }}</span>
+      <span>Caissier : {{ receipt.caissierId | userName }}</span>
+    </div>
+    <div class="receipt-line" *ngFor="let line of receipt.lignes">
+      <span>{{ line.quantite }} × {{ line.libelle }}</span>
+      <span class="num">{{ line.quantite * line.prixUnitaire | fcfa:false }}</span>
+    </div>
+    <div class="receipt-line receipt-sep" *ngIf="receipt.remise"><span>Remise</span><span class="num">− {{ receipt.remise | fcfa:false }}</span></div>
+    <div class="receipt-line receipt-total"><span>TOTAL</span><span class="num">{{ receipt.total | fcfa }}</span></div>
+    <div class="receipt-line"><span>{{ label(receipt.paiement) }}</span><span class="num">{{ (receipt.montantRecu || receipt.total) | fcfa:false }}</span></div>
+    <div class="receipt-line" *ngIf="receipt.montantRecu"><span>Rendu</span><span class="num">{{ receipt.montantRecu - receipt.total | fcfa:false }}</span></div>
+    <p class="receipt-thanks">Merci et à demain ! · On se voit au fournil</p>
+  </div>
+  <div modal-footer>
+    <button type="button" class="btn btn-outline" (click)="print()"><svg tmIcon="print"></svg> Imprimer le reçu</button>
+    <button type="button" class="btn btn-primary" (click)="receipt = null">Nouvelle vente <svg tmIcon="arrow-right"></svg></button>
+  </div>
+</tm-modal>
+
+<!-- ============ Clôture ============ -->
+<tm-modal *ngIf="closing" title="Clôturer la caisse" kicker="Fin de session" [subtitle]="session?.poste || closedSession?.poste || ''" (closed)="finishClosing()" [footer]="true">
+  <ng-container *ngIf="!closedSession; else closedTpl">
+    <div class="alert alert--info"><svg tmIcon="info"></svg><span>Comptez les espèces du tiroir, fond de caisse compris, puis saisissez le total. Le montant attendu s’affichera après votre déclaration.</span></div>
+    <label class="field mt">
+      <span>Espèces comptées (FCFA)</span>
+      <input class="input input-xl num" type="number" min="0" step="25" [(ngModel)]="declare" placeholder="0" autofocus>
+    </label>
+  </ng-container>
+  <ng-template #closedTpl>
+    <div class="close-result" *ngIf="closedSession">
+      <div class="close-icon" [class.close-icon--warn]="closedSession.ecart !== 0"><svg [tmIcon]="closedSession.ecart === 0 ? 'check' : 'alert'"></svg></div>
+      <h3 class="section-title">{{ closedSession.ecart === 0 ? 'Caisse juste, bravo !' : 'Écart constaté' }}</h3>
+      <dl class="dl mt">
+        <dt>Montant attendu</dt><dd class="num">{{ closedSession.attendu | fcfa }}</dd>
+        <dt>Montant déclaré</dt><dd class="num">{{ closedSession.declare | fcfa }}</dd>
+        <dt>Écart</dt><dd class="num" [class.neg]="(closedSession.ecart || 0) < 0">{{ closedSession.ecart | fcfa }}</dd>
+      </dl>
+      <p class="muted small mt">La clôture, l’écart et l’écriture comptable de ventes ont été enregistrés et tracés.</p>
+    </div>
+  </ng-template>
+  <div modal-footer>
+    <ng-container *ngIf="!closedSession; else doneBtn">
+      <button type="button" class="btn btn-ghost" (click)="finishClosing()">Annuler</button>
+      <button type="button" class="btn btn-dark" [disabled]="declare === null || declare < 0" (click)="close()"><svg tmIcon="lock"></svg> Valider la clôture</button>
+    </ng-container>
+    <ng-template #doneBtn><button type="button" class="btn btn-primary" (click)="finishClosing()">Terminer</button></ng-template>
+  </div>
+</tm-modal>

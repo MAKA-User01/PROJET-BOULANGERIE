@@ -1,5 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48">
-  <rect width="48" height="48" rx="14" fill="#e7a16e"/>
-  <path d="M8 25C8 15 15 8 24 8s16 7 16 17v13H8V25Z" fill="#7f3825"/>
-  <path d="m16 17 2 5m6-7v6m6-4-2 5M12 29h24" fill="none" stroke="#f8ddbb" stroke-linecap="round" stroke-width="2.5"/>
+  <defs><linearGradient id="c" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#e07a2e"/><stop offset="1" stop-color="#a5400f"/></linearGradient></defs>
+  <rect width="48" height="48" rx="14" fill="url(#c)"/>
+  <path d="M11 17.2C11 14.3 13.3 12 16.2 12h15.6c2.9 0 5.2 2.3 5.2 5.2s-2.3 5.2-5.2 5.2H27.6v12.8a3.6 3.6 0 0 1-7.2 0V22.4h-4.2c-2.9 0-5.2-2.3-5.2-5.2Z" fill="#fdf1dc"/>
+  <path d="m16.5 15.2 2.3 3.6M22.8 15.2l2.3 3.6M29.1 15.2l2.3 3.6" stroke="#d9772c" stroke-width="1.7" stroke-linecap="round"/>
 </svg>

@@ -1,0 +1,125 @@
+<div class="page">
+  <header class="page-header">
+    <div>
+      <p class="eyebrow">Ventes</p>
+      <h1 class="page-title">Le journal <em>des ventes.</em></h1>
+      <p class="page-lead">{{ scopeLabel }}. Une vente validée ne s’efface jamais : elle s’annule selon une procédure tracée.</p>
+    </div>
+    <div class="page-actions">
+      <a class="btn btn-primary" routerLink="/app/caisse" *tmCan="'ventes:caisse'"><svg tmIcon="cash"></svg> Ouvrir le point de vente</a>
+    </div>
+  </header>
+
+  <div class="segmented" *ngIf="canSeeSessions" style="margin-bottom: 18px">
+    <button type="button" [class.is-active]="tab === 'ventes'" (click)="tab = 'ventes'">Tickets</button>
+    <button type="button" [class.is-active]="tab === 'sessions'" (click)="tab = 'sessions'">Sessions de caisse</button>
+  </div>
+
+  <ng-container *ngIf="tab === 'ventes'">
+    <section class="grid grid-4">
+      <div class="card kpi"><span class="kpi-label">Chiffre d’affaires</span><div class="kpi-value">{{ totals.total | fcfa:false }}<small>FCFA</small></div><span class="kpi-foot">Hors ventes annulées</span></div>
+      <div class="card kpi"><span class="kpi-label">Tickets</span><div class="kpi-value">{{ totals.count }}</div><span class="kpi-foot">Sur la période choisie</span></div>
+      <div class="card kpi"><span class="kpi-label">Panier moyen</span><div class="kpi-value">{{ totals.average | fcfa:false }}<small>FCFA</small></div><span class="kpi-foot">Par ticket</span></div>
+      <div class="card kpi">
+        <span class="kpi-label">Moyens de paiement</span>
+        <div class="mode-bars">
+          <div *ngFor="let item of totals.byMode; trackBy: trackByIndex"><span>{{ item.mode }}</span><div class="progress"><i [style.width.%]="item.share"></i></div><strong class="num">{{ item.share | number:'1.0-0' }} %</strong></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="card card--flush mt">
+      <header class="card-header">
+        <div><p class="card-kicker">Tickets</p><h2 class="card-title">{{ filtered.length }} vente(s)</h2></div>
+        <div class="segmented">
+          <button type="button" [class.is-active]="period === 'jour'" (click)="period = 'jour'">Aujourd’hui</button>
+          <button type="button" [class.is-active]="period === 'semaine'" (click)="period = 'semaine'">7 jours</button>
+          <button type="button" [class.is-active]="period === 'tout'" (click)="period = 'tout'">Tout</button>
+        </div>
+      </header>
+      <div class="toolbar">
+        <div class="input-group"><svg tmIcon="search"></svg><input class="input input-sm" [(ngModel)]="search" placeholder="N° de ticket ou produit…"></div>
+        <select class="select input-sm" style="width: auto" [(ngModel)]="status" aria-label="Filtrer par statut">
+          <option value="toutes">Tous les statuts</option>
+          <option value="validee">Validées</option>
+          <option value="annulation_demandee">Annulation demandée</option>
+          <option value="annulee">Annulées</option>
+        </select>
+      </div>
+      <div class="table-wrap">
+        <table class="table">
+          <thead><tr><th>Ticket</th><th>Date</th><th>Caissier</th><th>Articles</th><th>Paiement</th><th class="right">Montant</th><th>Statut</th><th></th></tr></thead>
+          <tbody>
+            <tr *ngFor="let sale of filtered.slice(0, limit)" (click)="open(sale)" style="cursor: pointer">
+              <td class="mono strong">{{ sale.numero }}</td>
+              <td>{{ sale.date | relative }}</td>
+              <td>{{ sale.caissierId | userName }}</td>
+              <td class="num">{{ items(sale) }}</td>
+              <td>{{ label(sale.paiement) }}</td>
+              <td class="right num strong">{{ sale.total | fcfa }}</td>
+              <td><span class="badge" [ngClass]="badge(sale.statut)">{{ statusLabels[sale.statut] }}</span></td>
+              <td class="right"><svg tmIcon="chevron-right" class="muted"></svg></td>
+            </tr>
+            <tr *ngIf="!filtered.length"><td colspan="8" class="table-empty">Aucune vente sur cette période.</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="toolbar" style="padding-top: 14px" *ngIf="filtered.length > limit">
+        <span class="muted small">{{ limit }} sur {{ filtered.length }} affichées</span>
+        <button type="button" class="btn btn-outline btn-sm" (click)="limit = limit + 40">Afficher plus</button>
+      </div>
+    </section>
+  </ng-container>
+
+  <section class="card card--flush" *ngIf="tab === 'sessions'">
+    <header class="card-header"><div><p class="card-kicker">Ouvertures & clôtures</p><h2 class="card-title">Sessions de caisse</h2></div></header>
+    <div class="table-wrap">
+      <table class="table">
+        <thead><tr><th>Poste</th><th>Caissier</th><th>Ouverture</th><th>Clôture</th><th class="right">Ventes</th><th class="right">Attendu</th><th class="right">Déclaré</th><th class="right">Écart</th></tr></thead>
+        <tbody>
+          <tr *ngFor="let session of sessions.slice(0, 40)">
+            <td class="strong">{{ session.poste }}</td>
+            <td>{{ session.caissierId | userName }}</td>
+            <td>{{ session.ouverture | relative }}</td>
+            <td><span *ngIf="session.fermeture; else openBadge">{{ session.fermeture | relative }}</span><ng-template #openBadge><span class="badge badge--success">Ouverte</span></ng-template></td>
+            <td class="right num">{{ sessionTotal(session) | fcfa }}</td>
+            <td class="right num">{{ session.attendu !== undefined ? (session.attendu | fcfa) : '—' }}</td>
+            <td class="right num">{{ session.declare !== undefined ? (session.declare | fcfa) : '—' }}</td>
+            <td class="right"><span *ngIf="session.ecart !== undefined" class="badge" [ngClass]="session.ecart === 0 ? 'badge--success' : 'badge--danger'">{{ session.ecart | fcfa }}</span></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+</div>
+
+<tm-modal *ngIf="selected" [title]="selected.numero" kicker="Détail du ticket" [subtitle]="(selected.date | date:'EEEE d MMMM yyyy, HH:mm') + ' · ' + (selected.caissierId | userName)" (closed)="selected = null">
+  <div class="list">
+    <div class="list-item" *ngFor="let line of selected.lignes">
+      <span class="thumb"><svg tmIcon="bread"></svg></span>
+      <div class="list-item-body"><strong>{{ line.libelle }}</strong><small>{{ line.quantite }} × {{ line.prixUnitaire | fcfa }}</small></div>
+      <strong class="num">{{ line.quantite * line.prixUnitaire | fcfa }}</strong>
+    </div>
+  </div>
+  <dl class="dl mt">
+    <dt>Sous-total</dt><dd class="num">{{ selected.sousTotal | fcfa }}</dd>
+    <dt>Remise</dt><dd class="num">{{ selected.remise | fcfa }}</dd>
+    <dt>Total</dt><dd class="num">{{ selected.total | fcfa }}</dd>
+    <dt>Paiement</dt><dd>{{ label(selected.paiement) }}</dd>
+    <dt>Statut</dt><dd><span class="badge" [ngClass]="badge(selected.statut)">{{ statusLabels[selected.statut] }}</span></dd>
+  </dl>
+  <div class="alert alert--warning mt" *ngIf="selected.motifAnnulation"><svg tmIcon="info"></svg><span><strong>Motif d’annulation :</strong> {{ selected.motifAnnulation }}</span></div>
+  <label class="field mt" *ngIf="canRequest(selected)">
+    <span>Demander l’annulation</span>
+    <textarea class="textarea" [(ngModel)]="motif" placeholder="Expliquez précisément la raison (obligatoire)…"></textarea>
+    <span class="field-hint">La demande sera validée ou refusée par le Manager. Le stock sera réintégré en cas d’accord.</span>
+  </label>
+  <div modal-footer>
+    <button type="button" class="btn btn-ghost" (click)="selected = null">Fermer</button>
+    <button type="button" class="btn btn-danger" *ngIf="canRequest(selected)" [disabled]="motif.trim().length < 5" (click)="request()">Envoyer la demande</button>
+    <ng-container *ngIf="selected.statut === 'annulation_demandee' && auth.can('ventes:superviser')">
+      <button type="button" class="btn btn-outline" (click)="decide(false)">Refuser</button>
+      <button type="button" class="btn btn-dark" (click)="decide(true)"><svg tmIcon="check"></svg> Valider l’annulation</button>
+    </ng-container>
+  </div>
+</tm-modal>

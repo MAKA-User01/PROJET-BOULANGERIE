@@ -1,0 +1,68 @@
+<div class="shell" *ngIf="auth.user">
+  <aside class="sidebar no-print" [class.is-open]="navOpen" aria-label="Navigation principale">
+    <div class="sidebar-glow" aria-hidden="true"></div>
+    <a class="sidebar-brand" routerLink="/app/tableau-de-bord"><tm-logo [light]="true"></tm-logo></a>
+
+    <div class="sidebar-role" [ngClass]="'tone-' + role.tone">
+      <span class="sidebar-role-dot"></span>
+      <div>
+        <small>Espace</small>
+        <strong>{{ role.label }}</strong>
+      </div>
+      <svg tmIcon="shield"></svg>
+    </div>
+
+    <nav class="sidebar-nav">
+      <div class="nav-group" *ngFor="let section of sections">
+        <p class="nav-caption">{{ section.label }}</p>
+        <a class="nav-link" *ngFor="let item of section.items" [routerLink]="['/app', item.path]" routerLinkActive="is-active">
+          <svg [tmIcon]="item.icon"></svg>
+          <span>{{ item.label }}</span>
+          <em class="nav-badge" *ngIf="badge(item) as count" [class.nav-badge--alert]="item.badge === 'stock'">{{ count }}</em>
+        </a>
+      </div>
+    </nav>
+
+    <div class="sidebar-footer">
+      <div class="user-menu" *ngIf="menuOpen">
+        <a routerLink="/app/profil" class="user-menu-item"><svg tmIcon="user"></svg> Mon profil & sécurité</a>
+        <button type="button" class="user-menu-item user-menu-item--danger" (click)="logout()"><svg tmIcon="logout"></svg> Se déconnecter</button>
+      </div>
+      <button type="button" class="user-card" (click)="menuOpen = !menuOpen" [attr.aria-expanded]="menuOpen">
+        <span class="avatar avatar--sm" [ngClass]="'tone-' + role.tone">{{ initials }}</span>
+        <span class="user-copy"><strong>{{ auth.user?.prenom }} {{ auth.user?.nom }}</strong><small>{{ auth.user?.identifiant }}</small></span>
+        <svg tmIcon="chevron-down"></svg>
+      </button>
+    </div>
+  </aside>
+
+  <div class="scrim no-print" *ngIf="navOpen" (click)="navOpen = false"></div>
+
+  <div class="main">
+    <header class="topbar no-print">
+      <button type="button" class="btn btn-ghost btn-icon btn-sm mobile-only" aria-label="Ouvrir le menu" (click)="navOpen = true"><svg tmIcon="menu"></svg></button>
+      <div class="crumbs">
+        <span class="crumbs-root">TAMMAK</span>
+        <svg tmIcon="chevron-right"></svg>
+        <strong>{{ currentLabel }}</strong>
+      </div>
+      <div class="topbar-right">
+        <span class="today">{{ today }}</span>
+        <span class="secure-pill" title="Session individuelle, expirée après inactivité">
+          <svg tmIcon="lock"></svg> Session sécurisée
+        </span>
+        <button type="button" class="btn btn-ghost btn-icon btn-sm" aria-label="Se déconnecter" title="Se déconnecter" (click)="logout()"><svg tmIcon="logout"></svg></button>
+      </div>
+    </header>
+
+    <div class="expiry-banner no-print" *ngIf="auth.secondsBeforeExpiry !== null" role="alert">
+      <svg tmIcon="clock"></svg>
+      <span>Par sécurité, votre session expire dans <strong>{{ auth.secondsBeforeExpiry }} s</strong> faute d’activité.</span>
+      <button type="button" class="btn btn-dark btn-xs" (click)="stayConnected()">Rester connecté</button>
+    </div>
+
+    <main class="content">
+      <router-outlet></router-outlet>
+    </main>
+  </div>
+</div>

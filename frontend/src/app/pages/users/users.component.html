@@ -1,0 +1,129 @@
+<div class="page">
+  <header class="page-header">
+    <div>
+      <p class="eyebrow">Utilisateurs & rôles</p>
+      <h1 class="page-title">Les personnes <em>de la maison.</em></h1>
+      <p class="page-lead" *ngIf="canManage">Créez les comptes individuels et attribuez un rôle métier. Les droits viennent exclusivement du rôle ; chaque attribution est journalisée.</p>
+      <p class="page-lead" *ngIf="!canManage">Assistance technique tracée : déverrouillage et réinitialisation. L’attribution des rôles relève du Manager.</p>
+    </div>
+    <div class="page-actions" *ngIf="canManage">
+      <button type="button" class="btn btn-primary" (click)="openCreate()"><svg tmIcon="plus"></svg> Nouveau compte</button>
+    </div>
+  </header>
+
+  <div class="segmented" style="margin-bottom: 18px">
+    <button type="button" [class.is-active]="tab === 'comptes'" (click)="tab = 'comptes'">Comptes</button>
+    <button type="button" [class.is-active]="tab === 'matrice'" (click)="tab = 'matrice'">Matrice des droits</button>
+  </div>
+
+  <section class="card card--flush" *ngIf="tab === 'comptes'">
+    <div class="toolbar" style="padding-top: 18px">
+      <div class="input-group"><svg tmIcon="search"></svg><input class="input input-sm" [(ngModel)]="search" placeholder="Nom, identifiant ou rôle…"></div>
+      <span class="muted small">{{ users.length }} compte(s)</span>
+    </div>
+    <div class="table-wrap">
+      <table class="table">
+        <thead><tr><th>Personne</th><th>Identifiant</th><th>Rôle</th><th>Dernière connexion</th><th>État</th><th></th></tr></thead>
+        <tbody>
+          <tr *ngFor="let user of users">
+            <td>
+              <div class="cell-main">
+                <span class="avatar avatar--sm" [ngClass]="'tone-' + role(user.role).tone">{{ initials(user) }}</span>
+                <span><strong>{{ user.prenom }} {{ user.nom }} <span class="muted small" *ngIf="isSelf(user)">(vous)</span></strong><small>{{ user.telephone || '—' }}</small></span>
+              </div>
+            </td>
+            <td class="mono">{{ user.identifiant }}</td>
+            <td><span class="role-chip" [ngClass]="'tone-' + role(user.role).tone">{{ role(user.role).label }}</span></td>
+            <td>{{ user.derniereConnexion ? (user.derniereConnexion | relative) : 'Jamais' }}</td>
+            <td>
+              <span class="badge" [ngClass]="user.actif ? 'badge--success' : 'badge--danger'">{{ user.actif ? 'Actif' : 'Désactivé' }}</span>
+              <span class="badge badge--warning" *ngIf="usersService.isLocked(user)" style="margin-left: 4px">Verrouillé</span>
+              <span class="badge badge--info" *ngIf="user.mustChangePassword" style="margin-left: 4px">1ʳᵉ connexion</span>
+            </td>
+            <td class="right" style="white-space: nowrap">
+              <ng-container *ngIf="canManage && !isSelf(user) && !isPrivileged(user)">
+                <button type="button" class="btn btn-ghost btn-xs" (click)="openRoleChange(user)">Rôle</button>
+                <button type="button" class="btn btn-ghost btn-xs" (click)="reset(user)">Mot de passe</button>
+                <button type="button" class="btn btn-xs" [ngClass]="user.actif ? 'btn-danger' : 'btn-success'" (click)="usersService.setActive(user, !user.actif)">{{ user.actif ? 'Désactiver' : 'Réactiver' }}</button>
+              </ng-container>
+              <span class="muted small" *ngIf="canManage && isPrivileged(user) && !isSelf(user)"><svg tmIcon="lock" style="width: 14px; height: 14px; vertical-align: -2px"></svg> Procédure renforcée</span>
+              <ng-container *ngIf="auth.can('utilisateurs:assistance') && !isSelf(user)">
+                <button type="button" class="btn btn-ghost btn-xs" *ngIf="usersService.isLocked(user)" (click)="usersService.unlock(user)">Déverrouiller</button>
+                <button type="button" class="btn btn-ghost btn-xs" (click)="reset(user)">Réinitialiser</button>
+              </ng-container>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section class="card card--flush" *ngIf="tab === 'matrice'">
+    <header class="card-header"><div><p class="card-kicker">RBAC · refus par défaut</p><h2 class="card-title">Qui peut faire quoi</h2><p class="card-subtitle">Toute permission absente est refusée. Les contrôles sont appliqués à chaque action, pas seulement dans l’interface.</p></div></header>
+    <div class="table-wrap">
+      <table class="table matrix">
+        <thead><tr><th>Permission</th><th *ngFor="let item of roles"><span class="role-chip" [ngClass]="'tone-' + item.tone">{{ item.label }}</span></th></tr></thead>
+        <tbody>
+          <tr *ngFor="let permission of permissions">
+            <td><strong>{{ permissionLabels[permission] }}</strong><br><small class="mono muted">{{ permission }}</small></td>
+            <td *ngFor="let item of roles"><svg [tmIcon]="has(item, permission) ? 'check' : 'minus'" [ngClass]="has(item, permission) ? 'yes' : 'no'"></svg></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+</div>
+
+<tm-modal *ngIf="form" title="Nouveau compte" kicker="Compte individuel" (closed)="form = null">
+  <form class="form" id="user-form" (ngSubmit)="create()">
+    <div class="form-grid">
+      <label class="field"><span>Prénom</span><input class="input" name="prenom" [(ngModel)]="form.prenom" (ngModelChange)="suggest()" required></label>
+      <label class="field"><span>Nom</span><input class="input" name="nom" [(ngModel)]="form.nom" (ngModelChange)="suggest()" required></label>
+      <label class="field"><span>Identifiant de connexion</span><input class="input mono" name="identifiant" [(ngModel)]="form.identifiant" (input)="identifiantTouched = true" autocapitalize="none" required><span class="field-hint">Unique, en minuscules.</span></label>
+      <label class="field"><span>Téléphone</span><input class="input" name="telephone" [(ngModel)]="form.telephone" placeholder="+237 6 …"></label>
+    </div>
+    <div class="field">
+      <span>Rôle métier</span>
+      <div class="role-options">
+        <button type="button" class="role-option" *ngFor="let item of roles" [ngClass]="'tone-' + item.tone" [class.is-active]="form.role === item.id" [disabled]="!assignable.includes(item.id)" (click)="form.role = item.id">
+          <span class="demo-dot"></span>
+          <span><strong>{{ item.label }}</strong><small>{{ assignable.includes(item.id) ? item.description : 'Procédure renforcée — non attribuable ici' }}</small></span>
+        </button>
+      </div>
+    </div>
+    <div class="alert alert--info"><svg tmIcon="key"></svg><span>Un mot de passe provisoire sera généré. La personne devra le changer à sa première connexion.</span></div>
+  </form>
+  <div modal-footer>
+    <button type="button" class="btn btn-ghost" (click)="form = null">Annuler</button>
+    <button type="submit" form="user-form" class="btn btn-primary">Créer le compte</button>
+  </div>
+</tm-modal>
+
+<tm-modal *ngIf="roleChange" title="Changer de rôle" [kicker]="roleChange.user.prenom + ' ' + roleChange.user.nom" (closed)="roleChange = null">
+  <div class="form">
+    <div class="role-options">
+      <button type="button" class="role-option" *ngFor="let id of assignable" [ngClass]="'tone-' + role(id).tone" [class.is-active]="roleChange.role === id" (click)="roleChange.role = id">
+        <span class="demo-dot"></span><span><strong>{{ role(id).label }}</strong><small>{{ role(id).description }}</small></span>
+      </button>
+    </div>
+    <label class="field"><span>Justification (journalisée)</span><textarea class="textarea" [(ngModel)]="roleChange.justification" placeholder="Ex. Mutation au service des achats à compter du 1er novembre."></textarea></label>
+    <p class="muted small">Les anciens droits sont retirés immédiatement : seuls ceux du nouveau rôle s’appliquent.</p>
+  </div>
+  <div modal-footer>
+    <button type="button" class="btn btn-ghost" (click)="roleChange = null">Annuler</button>
+    <button type="button" class="btn btn-primary" [disabled]="roleChange.role === roleChange.user.role || !roleChange.justification.trim()" (click)="applyRoleChange()">Appliquer</button>
+  </div>
+</tm-modal>
+
+<tm-modal *ngIf="credentials" title="Modalités de première connexion" kicker="À remettre en main propre" (closed)="credentials = null">
+  <p class="muted">Communiquez ces informations à <strong>{{ credentials.user }}</strong>. Le mot de passe provisoire ne sera plus affiché.</p>
+  <div class="credentials mt print-area">
+    <p class="card-kicker">Identifiant</p><span class="mono">{{ credentials.identifiant }}</span>
+    <p class="card-kicker mt">Mot de passe provisoire</p><span class="mono">{{ credentials.password }}</span>
+  </div>
+  <p class="muted small mt">Changement obligatoire à la première connexion · 10 caractères minimum avec majuscule, minuscule, chiffre et caractère spécial.</p>
+  <div modal-footer>
+    <button type="button" class="btn btn-outline" (click)="print()"><svg tmIcon="print"></svg> Imprimer</button>
+    <button type="button" class="btn btn-primary" (click)="credentials = null">C’est noté</button>
+  </div>
+</tm-modal>

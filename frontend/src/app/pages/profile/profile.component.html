@@ -1,0 +1,58 @@
+<div class="page">
+  <header class="page-header">
+    <div>
+      <p class="eyebrow">Mon profil</p>
+      <h1 class="page-title" *ngIf="!firstLogin">Votre compte, <em>vos accès.</em></h1>
+      <h1 class="page-title" *ngIf="firstLogin">Bienvenue, <em>{{ auth.user?.prenom }}.</em></h1>
+      <p class="page-lead" *ngIf="firstLogin">Avant de commencer, remplacez le mot de passe provisoire par un mot de passe connu de vous seul.</p>
+    </div>
+  </header>
+
+  <div class="grid grid-main">
+    <form class="card" (ngSubmit)="submit()">
+      <p class="card-kicker">Sécurité</p>
+      <h2 class="card-title">{{ firstLogin ? 'Choisir mon mot de passe' : 'Changer de mot de passe' }}</h2>
+      <div class="alert alert--warning mt" *ngIf="auth.user?.mustChangePassword"><svg tmIcon="key"></svg><span>Changement obligatoire : l’accès aux modules est bloqué tant que le mot de passe provisoire est actif.</span></div>
+      <div class="alert alert--danger mt" *ngIf="error"><svg tmIcon="alert"></svg><span>{{ error }}</span></div>
+      <div class="form mt">
+        <label class="field"><span>{{ firstLogin ? 'Mot de passe provisoire' : 'Mot de passe actuel' }}</span><input class="input" [type]="show ? 'text' : 'password'" name="current" autocomplete="current-password" [(ngModel)]="current" required></label>
+        <div class="form-grid">
+          <label class="field"><span>Nouveau mot de passe</span><input class="input" [type]="show ? 'text' : 'password'" name="next" autocomplete="new-password" [(ngModel)]="next" required></label>
+          <label class="field"><span>Confirmation</span><input class="input" [type]="show ? 'text' : 'password'" name="confirm" autocomplete="new-password" [(ngModel)]="confirm" required></label>
+        </div>
+        <ul class="rules">
+          <li *ngFor="let rule of rules" [class.ok]="rule.test(next)"><svg [tmIcon]="rule.test(next) ? 'check' : 'minus'"></svg>{{ rule.label }}</li>
+          <li [class.ok]="!!next && next === confirm"><svg [tmIcon]="!!next && next === confirm ? 'check' : 'minus'"></svg>Confirmation identique</li>
+        </ul>
+        <div class="row-between">
+          <label class="check"><input type="checkbox" name="show" [(ngModel)]="show"> Afficher les mots de passe</label>
+          <button type="submit" class="btn btn-primary" [disabled]="!valid">Enregistrer <svg tmIcon="arrow-right"></svg></button>
+        </div>
+      </div>
+    </form>
+
+    <aside class="stack">
+      <div class="card">
+        <div class="identity">
+          <span class="avatar avatar--lg" [ngClass]="'tone-' + role.tone">{{ initials }}</span>
+          <div>
+            <h2 class="card-title" style="margin: 0">{{ auth.user?.prenom }} {{ auth.user?.nom }}</h2>
+            <p class="mono muted">{{ auth.user?.identifiant }}</p>
+            <span class="role-chip" [ngClass]="'tone-' + role.tone" style="margin-top: 8px">{{ role.label }}</span>
+          </div>
+        </div>
+        <dl class="dl mt">
+          <dt>Téléphone</dt><dd>{{ auth.user?.telephone || '—' }}</dd>
+          <dt>Compte créé</dt><dd>{{ auth.user?.creeLe | date:'d MMMM yyyy' }}</dd>
+          <dt>Dernière connexion</dt><dd>{{ auth.user?.derniereConnexion | relative }}</dd>
+        </dl>
+      </div>
+      <div class="card card--cream">
+        <p class="card-kicker">Ce que votre rôle autorise</p>
+        <h2 class="card-title">{{ permissions.length }} permission(s)</h2>
+        <ul class="perm-list mt"><li *ngFor="let permission of permissions"><svg tmIcon="check"></svg>{{ permission }}</li></ul>
+        <p class="muted small mt">Tout le reste est refusé par défaut. Pour un besoin supplémentaire, adressez-vous à votre manager.</p>
+      </div>
+    </aside>
+  </div>
+</div>

@@ -1,0 +1,82 @@
+<div class="page">
+  <header class="page-header">
+    <div>
+      <p class="eyebrow">Catalogue</p>
+      <h1 class="page-title">Nos produits, <em>nos matières.</em></h1>
+      <p class="page-lead">Références, prix et statuts. Chaque modification de prix ou de statut est tracée avec son auteur.</p>
+    </div>
+    <div class="page-actions">
+      <button type="button" class="btn btn-primary" *tmCan="'produits:gerer'" (click)="create()"><svg tmIcon="plus"></svg> Nouveau produit</button>
+    </div>
+  </header>
+
+  <section class="card card--flush">
+    <header class="card-header">
+      <div class="segmented">
+        <button type="button" [class.is-active]="type === 'fini'" (click)="type = 'fini'">Produits finis <span class="count">{{ count.fini }}</span></button>
+        <button type="button" [class.is-active]="type === 'matiere'" (click)="type = 'matiere'">Matières premières <span class="count">{{ count.matiere }}</span></button>
+      </div>
+      <label class="check"><input type="checkbox" [(ngModel)]="showInactive"> Afficher les inactifs</label>
+    </header>
+    <div class="toolbar">
+      <div class="input-group"><svg tmIcon="search"></svg><input class="input input-sm" [(ngModel)]="search" placeholder="Nom, référence ou catégorie…"></div>
+      <span class="muted small" *ngIf="!auth.can('produits:gerer')"><svg tmIcon="lock" style="width: 14px; height: 14px; vertical-align: -2px"></svg> Consultation seule</span>
+    </div>
+    <div class="table-wrap">
+      <table class="table">
+        <thead><tr><th>Produit</th><th>Catégorie</th><th class="right">{{ type === 'fini' ? 'Prix de vente' : 'Coût unitaire' }}</th><th>Disponibilité</th><th>Statut</th><th></th></tr></thead>
+        <tbody>
+          <tr *ngFor="let product of products">
+            <td>
+              <div class="cell-main">
+                <span class="thumb" [class.thumb--matiere]="product.type === 'matiere'"><svg [tmIcon]="product.type === 'matiere' ? 'wheat' : 'bread'"></svg></span>
+                <span><strong>{{ product.libelle }}</strong><small class="mono">{{ product.reference }}</small></span>
+              </div>
+            </td>
+            <td>{{ product.categorie }}</td>
+            <td class="right num strong">{{ product.prix | fcfa }}<span class="muted small"> / {{ product.unite }}</span></td>
+            <td style="min-width: 170px">
+              <div class="row-between small"><span class="num strong">{{ product.stock }} {{ product.unite }}</span><span class="muted">seuil {{ product.seuil }}</span></div>
+              <div class="progress" [class.progress--danger]="product.stock <= product.seuil" [class.progress--success]="product.stock > product.seuil" style="margin-top: 6px"><i [style.width.%]="level(product)"></i></div>
+            </td>
+            <td><span class="badge" [ngClass]="product.actif ? 'badge--success' : ''">{{ product.actif ? 'Actif' : 'Inactif' }}</span></td>
+            <td class="right"><button type="button" class="btn btn-ghost btn-sm" *tmCan="'produits:gerer'" (click)="edit(product)"><svg tmIcon="edit"></svg> Modifier</button></td>
+          </tr>
+          <tr *ngIf="!products.length"><td colspan="6" class="table-empty">Aucun produit ne correspond à votre recherche.</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+</div>
+
+<tm-modal *ngIf="draft" [title]="draft.id ? 'Modifier la fiche' : 'Nouveau produit'" [kicker]="editing?.reference || 'Catalogue'" (closed)="draft = null">
+  <form class="form" id="product-form" (ngSubmit)="save()">
+    <div class="segmented" *ngIf="!draft.id">
+      <button type="button" [class.is-active]="draft.type === 'fini'" (click)="draft.type = 'fini'; onTypeChange()">Produit fini</button>
+      <button type="button" [class.is-active]="draft.type === 'matiere'" (click)="draft.type = 'matiere'; onTypeChange()">Matière première</button>
+    </div>
+    <label class="field"><span>Libellé</span><input class="input" name="libelle" [(ngModel)]="draft.libelle" placeholder="Ex. Pain aux céréales" required></label>
+    <div class="form-grid">
+      <label class="field"><span>Catégorie</span><select class="select" name="categorie" [(ngModel)]="draft.categorie"><option *ngFor="let category of categories" [value]="category">{{ category }}</option></select></label>
+      <label class="field"><span>Unité</span><input class="input" name="unite" [(ngModel)]="draft.unite"></label>
+      <label class="field"><span>{{ draft.type === 'fini' ? 'Prix de vente' : 'Coût unitaire' }} (FCFA)</span><input class="input num" type="number" min="1" name="prix" [(ngModel)]="draft.prix" required></label>
+      <label class="field"><span>Seuil d’alerte</span><input class="input num" type="number" min="0" name="seuil" [(ngModel)]="draft.seuil"></label>
+      <label class="field" *ngIf="!draft.id && auth.can('stocks:gerer')"><span>Stock initial</span><input class="input num" type="number" min="0" name="stock" [(ngModel)]="draft.stock"></label>
+    </div>
+    <label class="check" *ngIf="draft.id"><input type="checkbox" name="actif" [(ngModel)]="draft.actif"> Produit actif (vendable / commandable)</label>
+    <div class="alert alert--info" *ngIf="!draft.id && !auth.can('stocks:gerer')"><svg tmIcon="info"></svg><span>Le stock initial sera saisi par le gestionnaire de stock.</span></div>
+  </form>
+  <div class="mt" *ngIf="history.length">
+    <p class="card-kicker">Historique tracé</p>
+    <div class="list mt">
+      <div class="list-item" *ngFor="let log of history">
+        <div class="list-item-body"><strong>{{ log.action }}</strong><small>{{ log.details || '—' }}</small></div>
+        <span class="muted small">{{ log.identifiant }} · {{ log.date | relative }}</span>
+      </div>
+    </div>
+  </div>
+  <div modal-footer>
+    <button type="button" class="btn btn-ghost" (click)="draft = null">Annuler</button>
+    <button type="submit" form="product-form" class="btn btn-primary">Enregistrer</button>
+  </div>
+</tm-modal>

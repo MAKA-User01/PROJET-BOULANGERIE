@@ -1,0 +1,147 @@
+<div class="page">
+  <header class="page-header">
+    <div>
+      <p class="eyebrow">Comptabilité · SYSCOHADA</p>
+      <h1 class="page-title">Les comptes <em>bien tenus.</em></h1>
+      <p class="page-lead">Écritures générées par la caisse, les achats et la trésorerie, contrôlées puis validées. Une écriture validée ne se modifie plus : elle se contre-passe.</p>
+    </div>
+    <div class="page-actions">
+      <button type="button" class="btn btn-outline" (click)="export()"><svg tmIcon="download"></svg> Exporter (CSV)</button>
+      <button type="button" class="btn btn-primary" *tmCan="'compta:saisir'" (click)="create()"><svg tmIcon="plus"></svg> Nouvelle écriture</button>
+    </div>
+  </header>
+
+  <div class="alert alert--info" *ngIf="!auth.can('compta:saisir') && !auth.can('compta:controler')" style="margin-bottom: 18px"><svg tmIcon="lock"></svg><span>Consultation selon règle : vous pouvez lire et exporter, sans saisir ni valider.</span></div>
+
+  <div class="row-between" style="margin-bottom: 18px; flex-wrap: wrap">
+    <div class="segmented">
+      <button type="button" [class.is-active]="tab === 'ecritures'" (click)="tab = 'ecritures'">Journal des écritures <span class="count" *ngIf="drafts">{{ drafts }}</span></button>
+      <button type="button" [class.is-active]="tab === 'balance'" (click)="tab = 'balance'">Balance</button>
+      <button type="button" [class.is-active]="tab === 'etats'" (click)="tab = 'etats'">Compte de résultat</button>
+    </div>
+    <label class="check" *ngIf="tab !== 'ecritures'"><input type="checkbox" [(ngModel)]="includeDrafts"> Inclure les brouillons</label>
+  </div>
+
+  <section class="card card--flush" *ngIf="tab === 'ecritures'">
+    <div class="toolbar" style="padding-top: 18px">
+      <div class="row" style="flex-wrap: wrap">
+        <select class="select input-sm" style="width: auto" [(ngModel)]="journal" aria-label="Journal">
+          <option value="tous">Tous les journaux</option>
+          <option *ngFor="let item of journals" [value]="item.code">{{ item.code }} — {{ item.label }}</option>
+        </select>
+        <select class="select input-sm" style="width: auto" [(ngModel)]="status" aria-label="Statut">
+          <option value="tous">Tous statuts</option>
+          <option value="brouillon">À contrôler</option>
+          <option value="validee">Validées</option>
+        </select>
+      </div>
+      <span class="muted small">{{ entries.length }} écriture(s)</span>
+    </div>
+    <div class="table-wrap">
+      <table class="table">
+        <thead><tr><th>N°</th><th>Date</th><th>Journal</th><th>Libellé</th><th>Origine</th><th class="right">Montant</th><th>Statut</th><th></th></tr></thead>
+        <tbody>
+          <ng-container *ngFor="let entry of entries">
+            <tr (click)="toggle(entry)" style="cursor: pointer">
+              <td class="mono strong">{{ entry.numero }}</td>
+              <td>{{ entry.date | date:'dd/MM/yyyy' }}</td>
+              <td><span class="badge badge--plain">{{ entry.journal }}</span></td>
+              <td class="strong" style="max-width: 320px">{{ entry.libelle }}</td>
+              <td class="muted">{{ entry.source || 'Saisie manuelle' }}</td>
+              <td class="right num strong">{{ amount(entry) | fcfa }}</td>
+              <td><span class="badge" [ngClass]="entry.statut === 'validee' ? 'badge--success' : 'badge--warning'">{{ entry.statut === 'validee' ? 'Validée' : 'À contrôler' }}</span></td>
+              <td class="right" (click)="$event.stopPropagation()" style="white-space: nowrap">
+                <ng-container *ngIf="entry.statut === 'brouillon'">
+                  <button type="button" class="btn btn-ghost btn-xs" *tmCan="'compta:saisir'" (click)="edit(entry)">Modifier</button>
+                  <button type="button" class="btn btn-success btn-xs" *tmCan="'compta:controler'" (click)="accounting.validate(entry)">Valider</button>
+                </ng-container>
+                <button type="button" class="btn btn-ghost btn-xs" *ngIf="entry.statut === 'validee' && auth.can('compta:saisir')" (click)="accounting.reverse(entry)">Contre-passer</button>
+              </td>
+            </tr>
+            <tr *ngIf="expanded === entry.id" class="entry-lines">
+              <td colspan="8">
+                <table class="table">
+                  <thead><tr><th>Compte</th><th>Intitulé</th><th class="right">Débit</th><th class="right">Crédit</th></tr></thead>
+                  <tbody>
+                    <tr *ngFor="let line of entry.lignes"><td class="mono">{{ line.compte }}</td><td>{{ line.libelle }}</td><td class="right num">{{ line.debit ? (line.debit | fcfa:false) : '' }}</td><td class="right num">{{ line.credit ? (line.credit | fcfa:false) : '' }}</td></tr>
+                  </tbody>
+                </table>
+                <p class="muted small" style="padding: 8px 16px 0">Saisie : {{ entry.auteurId | userName }}<ng-container *ngIf="entry.controlePar"> · Contrôle : {{ entry.controlePar | userName }}</ng-container></p>
+              </td>
+            </tr>
+          </ng-container>
+          <tr *ngIf="!entries.length"><td colspan="8" class="table-empty">Aucune écriture.</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section class="card card--flush" *ngIf="tab === 'balance'">
+    <div class="table-wrap">
+      <table class="table">
+        <thead><tr><th>Compte</th><th>Intitulé</th><th class="right">Total débit</th><th class="right">Total crédit</th><th class="right">Solde</th></tr></thead>
+        <tbody>
+          <tr *ngFor="let row of balance; trackBy: trackByIndex">
+            <td class="mono strong">{{ row.compte }}</td><td>{{ row.libelle }}</td>
+            <td class="right num">{{ row.debit | fcfa:false }}</td><td class="right num">{{ row.credit | fcfa:false }}</td>
+            <td class="right num strong">{{ row.solde >= 0 ? 'D ' : 'C ' }}{{ (row.solde >= 0 ? row.solde : -row.solde) | fcfa:false }}</td>
+          </tr>
+          <tr><td colspan="2" class="strong">Totaux</td><td class="right num strong">{{ balanceTotals.debit | fcfa:false }}</td><td class="right num strong">{{ balanceTotals.credit | fcfa:false }}</td>
+            <td class="right"><span class="badge" [ngClass]="balanceTotals.debit === balanceTotals.credit ? 'badge--success' : 'badge--danger'">{{ balanceTotals.debit === balanceTotals.credit ? 'Équilibrée' : 'Déséquilibrée' }}</span></td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section class="grid grid-2" *ngIf="tab === 'etats'">
+    <article class="card">
+      <p class="card-kicker">Classe 7</p><h2 class="card-title">Produits</h2>
+      <div class="statement mt">
+        <div class="statement-row" *ngFor="let row of statement.produits; trackBy: trackByIndex"><span>{{ row.label }}</span><strong class="num">{{ row.amount | fcfa }}</strong></div>
+        <div class="statement-row total"><span>Total des produits</span><span class="num">{{ statement.totalProduits | fcfa }}</span></div>
+      </div>
+    </article>
+    <article class="card">
+      <p class="card-kicker">Classe 6</p><h2 class="card-title">Charges</h2>
+      <div class="statement mt">
+        <div class="statement-row" *ngFor="let row of statement.charges; trackBy: trackByIndex"><span>{{ row.label }}</span><strong class="num">{{ row.amount | fcfa }}</strong></div>
+        <div class="statement-row total"><span>Total des charges</span><span class="num">{{ statement.totalCharges | fcfa }}</span></div>
+      </div>
+    </article>
+    <article class="card card--ink" style="grid-column: 1 / -1">
+      <p class="card-kicker" style="color: #a8968a">Résultat de la période</p>
+      <div class="row-between mt">
+        <span class="result num">{{ statement.totalProduits - statement.totalCharges | fcfa }}</span>
+        <span class="badge" [ngClass]="statement.totalProduits >= statement.totalCharges ? 'badge--success' : 'badge--danger'">{{ statement.totalProduits >= statement.totalCharges ? 'Bénéfice' : 'Perte' }}</span>
+      </div>
+      <p class="small mt" style="color: #a8968a">{{ includeDrafts ? 'Brouillons inclus — résultat provisoire.' : 'Écritures validées uniquement.' }}</p>
+    </article>
+  </section>
+</div>
+
+<tm-modal *ngIf="draft" [title]="draft.id ? 'Modifier l’écriture' : 'Nouvelle écriture'" kicker="Saisie comptable" [wide]="true" (closed)="draft = null">
+  <div class="form">
+    <div class="form-grid" style="grid-template-columns: 160px 220px 1fr">
+      <label class="field"><span>Date</span><input class="input" type="date" [(ngModel)]="draft.date"></label>
+      <label class="field"><span>Journal</span><select class="select" [(ngModel)]="draft.journal"><option *ngFor="let item of journals" [value]="item.code">{{ item.code }} — {{ item.label }}</option></select></label>
+      <label class="field"><span>Libellé</span><input class="input" [(ngModel)]="draft.libelle" placeholder="Ex. Facture ENEO — octobre"></label>
+    </div>
+    <div class="line-row head"><span>Compte</span><span>Intitulé</span><span class="right">Débit</span><span class="right">Crédit</span><span></span></div>
+    <div class="line-row" *ngFor="let line of draft.lignes; let index = index">
+      <select class="select input-sm" [(ngModel)]="line.compte" aria-label="Compte"><option value="">Choisir…</option><option *ngFor="let account of accounts" [value]="account.compte">{{ account.compte }} · {{ account.libelle }}</option></select>
+      <input class="input input-sm" [(ngModel)]="line.libelle" placeholder="Intitulé (facultatif)" aria-label="Intitulé">
+      <input class="input input-sm num" type="number" min="0" [(ngModel)]="line.debit" aria-label="Débit">
+      <input class="input input-sm num" type="number" min="0" [(ngModel)]="line.credit" aria-label="Crédit">
+      <button type="button" class="btn btn-ghost btn-icon btn-sm" [disabled]="draft.lignes.length <= 2" (click)="removeLine(index)" aria-label="Supprimer"><svg tmIcon="close"></svg></button>
+    </div>
+    <button type="button" class="link-btn" style="align-self: flex-start" (click)="addLine()">+ Ajouter une ligne</button>
+    <div class="balance-check" [class.ok]="draftDebit > 0 && draftDebit === draftCredit" [class.ko]="draftDebit !== draftCredit">
+      <span>Débit <strong class="num">{{ draftDebit | fcfa }}</strong> · Crédit <strong class="num">{{ draftCredit | fcfa }}</strong></span>
+      <strong>{{ draftDebit === draftCredit ? (draftDebit > 0 ? 'Équilibrée ✓' : '—') : 'Écart : ' + (draftDebit - draftCredit) }}</strong>
+    </div>
+  </div>
+  <div modal-footer>
+    <button type="button" class="btn btn-ghost" (click)="draft = null">Annuler</button>
+    <button type="button" class="btn btn-primary" [disabled]="draftDebit === 0 || draftDebit !== draftCredit" (click)="save()">Enregistrer en brouillon</button>
+  </div>
+</tm-modal>

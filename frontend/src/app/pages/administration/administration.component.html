@@ -1,0 +1,92 @@
+<div class="page">
+  <header class="page-header">
+    <div>
+      <p class="eyebrow">Administration</p>
+      <h1 class="page-title">La salle <em>des machines.</em></h1>
+      <p class="page-lead" *ngIf="auth.can('config:gerer')">Configuration technique, sauvegardes et restauration. Chaque intervention est réalisée sous votre compte nominatif et tracée.</p>
+      <p class="page-lead" *ngIf="!auth.can('config:gerer')">État des sauvegardes et expression des besoins métier. L’exécution relève de l’administrateur technique.</p>
+    </div>
+    <div class="page-actions" *tmCan="'sauvegarde:executer'">
+      <button type="button" class="btn btn-primary" (click)="admin.runBackup()"><svg tmIcon="database"></svg> Lancer une sauvegarde</button>
+    </div>
+  </header>
+
+  <section class="grid grid-3" style="margin-bottom: 18px">
+    <div class="card kpi"><div class="kpi-top"><span class="kpi-label">Dernière sauvegarde</span><span class="kpi-icon" [ngClass]="lastBackup ? 'kpi-icon--okok' : 'kpi-icon--folere'"><svg tmIcon="database"></svg></span></div><div class="kpi-value" style="font-size: 24px">{{ lastBackup ? (lastBackup.date | relative) : 'Aucune' }}</div><span class="kpi-foot">{{ lastBackup ? (lastBackup.testeOk ? 'Restauration testée ✓' : 'Restauration non testée') : 'Lancez une première sauvegarde' }}</span></div>
+    <div class="card kpi"><div class="kpi-top"><span class="kpi-label">Volume des données</span><span class="kpi-icon kpi-icon--indigo"><svg tmIcon="box"></svg></span></div><div class="kpi-value" style="font-size: 24px">{{ size(dataSize) }}</div><span class="kpi-foot">Base locale de l’application</span></div>
+    <div class="card kpi"><div class="kpi-top"><span class="kpi-label">Journal d’audit</span><span class="kpi-icon kpi-icon--slate"><svg tmIcon="shield"></svg></span></div><div class="kpi-value" style="font-size: 24px">{{ auditCount }}</div><span class="kpi-foot">Traces conservées, jamais restaurées ni effacées</span></div>
+  </section>
+
+  <div class="grid grid-main">
+    <section class="card card--flush">
+      <header class="card-header"><div><p class="card-kicker">Continuité</p><h2 class="card-title">Sauvegardes</h2><p class="card-subtitle">Cinq copies conservées, empreinte SHA-256, restauration testable dans un environnement isolé.</p></div></header>
+      <div class="table-wrap">
+        <table class="table">
+          <thead><tr><th>Date</th><th>Exécutée par</th><th>Taille</th><th>Empreinte</th><th>Test</th><th *tmCan="'sauvegarde:executer'"></th></tr></thead>
+          <tbody>
+            <tr *ngFor="let backup of admin.backups">
+              <td class="strong">{{ backup.date | date:'dd/MM/yyyy HH:mm' }}</td>
+              <td>{{ backup.auteurId | userName }}</td>
+              <td class="num">{{ size(backup.taille) }}</td>
+              <td class="mono muted">{{ backup.checksum.slice(0, 12) }}…</td>
+              <td><span class="badge" [ngClass]="backup.testeLe ? (backup.testeOk ? 'badge--success' : 'badge--danger') : ''">{{ backup.testeLe ? (backup.testeOk ? 'Conforme' : 'Échec') : 'Non testée' }}</span></td>
+              <td class="right" style="white-space: nowrap" *tmCan="'sauvegarde:executer'">
+                <button type="button" class="btn btn-ghost btn-xs" (click)="admin.testRestore(backup)">Tester</button>
+                <button type="button" class="btn btn-ghost btn-xs" (click)="admin.download(backup)"><svg tmIcon="download"></svg></button>
+                <button type="button" class="btn btn-danger btn-xs" (click)="confirmRestore = backup">Restaurer</button>
+              </td>
+            </tr>
+            <tr *ngIf="!admin.backups.length"><td colspan="6" class="table-empty">Aucune sauvegarde pour le moment.</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <aside class="stack">
+      <div class="card card--cream">
+        <p class="card-kicker">Politique proposée</p>
+        <h2 class="card-title">Plan de sauvegarde</h2>
+        <div class="policy mt">
+          <div><small>Fréquence</small><strong>Quotidienne</strong></div>
+          <div><small>Copie</small><strong>Support séparé</strong></div>
+          <div><small>Test</small><strong>Mensuel</strong></div>
+        </div>
+        <p class="muted small mt">RPO, RTO et durée de conservation à confirmer avec le Manager avant la mise en production.</p>
+      </div>
+
+      <div class="card" *tmCan="'sauvegarde:valider'">
+        <p class="card-kicker">Besoin métier</p>
+        <h2 class="card-title">Demander une sauvegarde</h2>
+        <label class="field mt"><span>Contexte</span><textarea class="textarea" [(ngModel)]="requestMotif" placeholder="Ex. Avant la clôture comptable du mois."></textarea></label>
+        <button type="button" class="btn btn-dark mt" (click)="requestBackup()">Transmettre à l’administrateur</button>
+      </div>
+    </aside>
+  </div>
+
+  <form class="card mt" *tmCan="'config:gerer'" (ngSubmit)="saveTechnical()">
+    <header class="card-header"><div><p class="card-kicker">Paramètres techniques</p><h2 class="card-title">Sécurité des sessions</h2><p class="card-subtitle">Toute modification est journalisée avec la valeur avant et après.</p></div></header>
+    <div class="form-grid">
+      <label class="field span-2"><span>Nom de l’établissement</span><input class="input" name="nom" [(ngModel)]="technical.nomEtablissement"></label>
+      <label class="field"><span>Expiration de session (minutes d’inactivité)</span><input class="input num" type="number" min="2" max="120" name="timeout" [(ngModel)]="technical.sessionTimeoutMin"></label>
+      <label class="field"><span>Tentatives avant verrouillage</span><input class="input num" type="number" min="3" max="10" name="tentatives" [(ngModel)]="technical.maxTentatives"></label>
+      <label class="field"><span>Durée du verrouillage (minutes)</span><input class="input num" type="number" min="1" name="verrouillage" [(ngModel)]="technical.verrouillageMin"></label>
+      <label class="check" style="align-self: end; padding-bottom: 12px"><input type="checkbox" name="mfa" [(ngModel)]="technical.mfaPrivilegies"> Double vérification pour Manager et Administrateur</label>
+    </div>
+    <div class="row mt"><button type="submit" class="btn btn-dark">Enregistrer la configuration</button></div>
+  </form>
+
+  <section class="card mt danger-zone" *ngIf="demo && auth.can('config:gerer')">
+    <div class="row-between" style="flex-wrap: wrap">
+      <div><p class="card-kicker">Environnement de démonstration</p><h2 class="card-title">Réinitialiser les données</h2><p class="card-subtitle">Recharge le jeu de données initial. Indisponible en production.</p></div>
+      <button type="button" class="btn btn-danger" (click)="resetDemo()"><svg tmIcon="refresh"></svg> Réinitialiser</button>
+    </div>
+  </section>
+</div>
+
+<tm-modal *ngIf="confirmRestore" title="Restaurer cette sauvegarde ?" kicker="Opération sensible" (closed)="confirmRestore = null">
+  <div class="alert alert--warning"><svg tmIcon="alert"></svg><span>Les données métier seront remplacées par celles du {{ confirmRestore.date | date:'dd/MM/yyyy à HH:mm' }}. Le journal d’audit est conservé intégralement. Testez d’abord la restauration si ce n’est pas fait.</span></div>
+  <div modal-footer>
+    <button type="button" class="btn btn-ghost" (click)="confirmRestore = null">Annuler</button>
+    <button type="button" class="btn btn-danger" (click)="restore()">Confirmer la restauration</button>
+  </div>
+</tm-modal>

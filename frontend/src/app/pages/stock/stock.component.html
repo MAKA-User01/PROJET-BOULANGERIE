@@ -1,0 +1,138 @@
+<div class="page">
+  <header class="page-header">
+    <div>
+      <p class="eyebrow">Stocks & inventaires</p>
+      <h1 class="page-title" *ngIf="!limited">L’état <em>des réserves.</em></h1>
+      <h1 class="page-title" *ngIf="limited">Disponibilités <em>du jour.</em></h1>
+      <p class="page-lead" *ngIf="!limited">Entrées, sorties, pertes et inventaires — chaque mouvement est motivé, historisé et, au-delà du seuil, validé par le Manager.</p>
+      <p class="page-lead" *ngIf="limited">Consultation limitée : les quantités disponibles des produits en vente.</p>
+    </div>
+    <div class="page-actions" *tmCan="'stocks:gerer'">
+      <button type="button" class="btn btn-primary" (click)="openForm()"><svg tmIcon="plus"></svg> Nouveau mouvement</button>
+    </div>
+  </header>
+
+  <section class="grid grid-3" *ngIf="!limited" style="margin-bottom: 18px">
+    <div class="card kpi"><div class="kpi-top"><span class="kpi-label">Références actives</span><span class="kpi-icon kpi-icon--gold"><svg tmIcon="box"></svg></span></div><div class="kpi-value">{{ stock.products.length }}</div><span class="kpi-foot">Produits finis et matières</span></div>
+    <div class="card kpi"><div class="kpi-top"><span class="kpi-label">Sous le seuil</span><span class="kpi-icon kpi-icon--folere"><svg tmIcon="alert"></svg></span></div><div class="kpi-value">{{ alertCount }}</div><span class="kpi-foot">À réapprovisionner ou produire</span></div>
+    <div class="card kpi"><div class="kpi-top"><span class="kpi-label">Valeur des matières</span><span class="kpi-icon kpi-icon--okok"><svg tmIcon="wheat"></svg></span></div><div class="kpi-value">{{ stockValue | fcfa:false }}<small>FCFA</small></div><span class="kpi-foot">{{ stock.pendingMovements.length }} ajustement(s) en attente</span></div>
+  </section>
+
+  <div class="segmented" *ngIf="!limited" style="margin-bottom: 18px">
+    <button type="button" [class.is-active]="tab === 'etat'" (click)="tab = 'etat'">État des stocks</button>
+    <button type="button" [class.is-active]="tab === 'mouvements'" (click)="tab = 'mouvements'">Mouvements</button>
+    <button type="button" *tmCan="'stocks:gerer'" [class.is-active]="tab === 'inventaire'" (click)="tab = 'inventaire'">Feuille d’inventaire</button>
+  </div>
+
+  <!-- État -->
+  <section class="card card--flush" *ngIf="tab === 'etat' || limited">
+    <div class="toolbar" style="padding-top: 18px">
+      <div class="input-group"><svg tmIcon="search"></svg><input class="input input-sm" [(ngModel)]="search" placeholder="Rechercher…"></div>
+      <label class="check"><input type="checkbox" [(ngModel)]="onlyAlerts"> Seulement les alertes</label>
+    </div>
+    <div class="table-wrap">
+      <table class="table">
+        <thead><tr><th>Produit</th><th>Type</th><th>Niveau</th><th class="right">Quantité</th><th>État</th><th *tmCan="'stocks:gerer'"></th></tr></thead>
+        <tbody>
+          <tr *ngFor="let product of products">
+            <td><div class="cell-main"><span class="thumb" [class.thumb--matiere]="product.type === 'matiere'"><svg [tmIcon]="product.type === 'matiere' ? 'wheat' : 'bread'"></svg></span><span><strong>{{ product.libelle }}</strong><small class="mono">{{ product.reference }}</small></span></div></td>
+            <td>{{ product.type === 'fini' ? 'Produit fini' : 'Matière première' }}</td>
+            <td style="min-width: 150px"><div class="progress" [class.progress--danger]="product.stock <= product.seuil" [class.progress--success]="product.stock > product.seuil"><i [style.width.%]="level(product)"></i></div></td>
+            <td class="right num"><strong>{{ product.stock }}</strong> <span class="muted small">{{ product.unite }} · seuil {{ product.seuil }}</span></td>
+            <td><span class="badge" [ngClass]="statusOf(product).css">{{ statusOf(product).label }}</span></td>
+            <td class="right" *tmCan="'stocks:gerer'">
+              <button type="button" class="btn btn-ghost btn-xs" (click)="openForm(product, 'entree')">Entrée</button>
+              <button type="button" class="btn btn-ghost btn-xs" (click)="openForm(product, 'perte')">Perte</button>
+            </td>
+          </tr>
+          <tr *ngIf="!products.length"><td colspan="6" class="table-empty">Aucun produit à afficher.</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- Mouvements -->
+  <section class="card card--flush" *ngIf="tab === 'mouvements' && !limited">
+    <div class="toolbar" style="padding-top: 18px">
+      <div class="input-group"><svg tmIcon="search"></svg><input class="input input-sm" [(ngModel)]="search" placeholder="Produit ou motif…"></div>
+      <select class="select input-sm" style="width: auto" [(ngModel)]="filterType" aria-label="Type de mouvement">
+        <option value="tous">Tous (hors ventes)</option>
+        <option *ngFor="let item of movementLabels | keyvalue" [value]="item.key">{{ item.value }}</option>
+      </select>
+    </div>
+    <div class="table-wrap">
+      <table class="table">
+        <thead><tr><th>Date</th><th>Produit</th><th>Type</th><th class="right">Quantité</th><th class="right">Avant → après</th><th>Motif</th><th>Auteur</th><th>Statut</th></tr></thead>
+        <tbody>
+          <tr *ngFor="let movement of movements">
+            <td>{{ movement.date | relative }}</td>
+            <td class="strong">{{ productLabel(movement.productId) }}</td>
+            <td>{{ movementLabels[movement.type] }}</td>
+            <td class="right num strong" [style.color]="movement.quantite > 0 ? 'var(--okok-700)' : 'var(--danger-500)'">{{ movement.quantite > 0 ? '+' : '' }}{{ movement.quantite }} {{ unit(movement.productId) }}</td>
+            <td class="right num muted">{{ movement.stockAvant }} → {{ movement.stockApres }}</td>
+            <td style="max-width: 260px">{{ movement.motif }}</td>
+            <td>{{ movement.auteurId | userName }}</td>
+            <td><span class="badge" [ngClass]="movement.statut === 'applique' ? 'badge--success' : movement.statut === 'en_attente' ? 'badge--warning' : 'badge--danger'">{{ movement.statut === 'applique' ? 'Appliqué' : movement.statut === 'en_attente' ? 'En validation' : 'Refusé' }}</span></td>
+          </tr>
+          <tr *ngIf="!movements.length"><td colspan="8" class="table-empty">Aucun mouvement.</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- Inventaire -->
+  <section class="card card--flush" *ngIf="tab === 'inventaire' && auth.can('stocks:gerer')">
+    <header class="card-header">
+      <div><p class="card-kicker">Comptage physique</p><h2 class="card-title">Feuille d’inventaire</h2><p class="card-subtitle">Saisissez uniquement les quantités comptées. Les écarts d’au moins {{ seuilEcart }} unités sont soumis au Manager.</p></div>
+    </header>
+    <div class="table-wrap">
+      <table class="table">
+        <thead><tr><th>Produit</th><th class="right">Théorique</th><th>Compté</th><th class="right">Écart</th></tr></thead>
+        <tbody>
+          <tr *ngFor="let product of products">
+            <td class="strong">{{ product.libelle }} <span class="muted small mono">{{ product.reference }}</span></td>
+            <td class="right num">{{ product.stock }} {{ product.unite }}</td>
+            <td><input class="input input-sm num count-input" type="number" min="0" [(ngModel)]="counts[product.id]" [attr.aria-label]="'Quantité comptée de ' + product.libelle"></td>
+            <td class="right num strong">
+              <ng-container *ngIf="counts[product.id] !== null && counts[product.id] !== undefined && counts[product.id]?.toString() !== ''">
+                <span [class.delta-pos]="(counts[product.id] || 0) - product.stock > 0" [class.delta-neg]="(counts[product.id] || 0) - product.stock < 0">{{ (counts[product.id] || 0) - product.stock > 0 ? '+' : '' }}{{ (counts[product.id] || 0) - product.stock }}</span>
+              </ng-container>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="toolbar" style="padding-top: 16px">
+      <input class="input input-sm" style="max-width: 360px" [(ngModel)]="inventoryMotif" placeholder="Motif de l’inventaire" aria-label="Motif">
+      <button type="button" class="btn btn-dark" [disabled]="!countedEntries.length || !inventoryMotif.trim()" (click)="submitInventory()"><svg tmIcon="check"></svg> Enregistrer {{ countedEntries.length }} comptage(s)</button>
+    </div>
+  </section>
+</div>
+
+<tm-modal *ngIf="form" title="Nouveau mouvement" kicker="Stocks" (closed)="form = null">
+  <form class="form" id="movement-form" (ngSubmit)="submit()">
+    <label class="field"><span>Produit</span>
+      <select class="select" name="product" [(ngModel)]="form.productId">
+        <optgroup label="Produits finis"><option *ngFor="let product of finis" [value]="product.id">{{ product.libelle }} — {{ product.stock }} {{ product.unite }}</option></optgroup>
+        <optgroup label="Matières premières"><option *ngFor="let product of matieres" [value]="product.id">{{ product.libelle }} — {{ product.stock }} {{ product.unite }}</option></optgroup>
+      </select>
+    </label>
+    <div class="field">
+      <span>Type de mouvement</span>
+      <div class="type-grid">
+        <button type="button" class="type-option" *ngFor="let item of manualTypes" [class.is-active]="form.type === item.id" (click)="form.type = item.id">{{ item.label }}<small>{{ item.hint }}</small></button>
+      </div>
+    </div>
+    <label class="field"><span>{{ form.type === 'inventaire' ? 'Quantité comptée' : 'Quantité' }} ({{ selectedProduct?.unite }})</span><input class="input num" type="number" min="0" name="quantite" [(ngModel)]="form.quantite" required></label>
+    <div class="preview" *ngIf="selectedProduct && form.quantite !== null">
+      <span class="muted">{{ selectedProduct.stock }} → <strong class="num" [class.delta-neg]="selectedProduct.stock + delta < 0">{{ selectedProduct.stock + delta }}</strong> {{ selectedProduct.unite }}</span>
+      <span class="badge" [ngClass]="delta >= 0 ? 'badge--success' : 'badge--danger'">{{ delta > 0 ? '+' : '' }}{{ delta }}</span>
+    </div>
+    <label class="field"><span>Motif / justification</span><textarea class="textarea" name="motif" [(ngModel)]="form.motif" placeholder="Ex. Fournée de 5 h, invendus de la veille, casse…" required></textarea></label>
+    <div class="alert alert--warning" *ngIf="sensitive"><svg tmIcon="stamp"></svg><span>Écart sensible : ce mouvement sera <strong>soumis à la validation du Manager</strong> avant d’impacter le stock.</span></div>
+  </form>
+  <div modal-footer>
+    <button type="button" class="btn btn-ghost" (click)="form = null">Annuler</button>
+    <button type="submit" form="movement-form" class="btn btn-primary" [disabled]="form.quantite === null || !form.motif.trim()">{{ sensitive ? 'Soumettre à validation' : 'Enregistrer' }}</button>
+  </div>
+</tm-modal>

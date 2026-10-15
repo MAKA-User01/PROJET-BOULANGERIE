@@ -1,0 +1,158 @@
+<div class="page">
+  <header class="page-header">
+    <div>
+      <p class="eyebrow">Trésorerie</p>
+      <h1 class="page-title">L’argent <em>qui circule.</em></h1>
+      <p class="page-lead">Encaissements, règlements fournisseurs et budgets. Les paiements au-delà de {{ store.state.settings.seuilPaiement | fcfa }} exigent l’accord du Manager.</p>
+    </div>
+    <div class="page-actions" *tmCan="'tresorerie:gerer'">
+      <button type="button" class="btn btn-outline" (click)="newBudget()"><svg tmIcon="wallet"></svg> Proposer un budget</button>
+      <button type="button" class="btn btn-outline" (click)="newRequest()"><svg tmIcon="coin"></svg> Demande de paiement</button>
+      <button type="button" class="btn btn-primary" (click)="newMovement()"><svg tmIcon="plus"></svg> Mouvement</button>
+    </div>
+  </header>
+
+  <section class="accounts">
+    <div class="card card--ink kpi total-card">
+      <span class="kpi-label">Trésorerie totale</span>
+      <div class="kpi-value">{{ finance.totalCash | fcfa:false }}<small>FCFA</small></div>
+      <span class="kpi-foot">Ce mois : +{{ monthFlows.entrees | fcfa:false }} / −{{ monthFlows.sorties | fcfa:false }}</span>
+    </div>
+    <div class="card account-card" *ngFor="let account of finance.accounts">
+      <span class="kpi-icon" [ngClass]="account.type === 'banque' ? 'kpi-icon--indigo' : account.type === 'mobile' ? 'kpi-icon--okok' : 'kpi-icon--gold'"><svg [tmIcon]="account.type === 'caisse' ? 'cash' : account.type === 'banque' ? 'store' : 'phone'"></svg></span>
+      <div><span class="kpi-label">{{ account.libelle }}</span><br><strong class="num">{{ account.solde | fcfa }}</strong></div>
+    </div>
+  </section>
+
+  <div class="alert alert--warning mt" *ngIf="auth.can('tresorerie:gerer') && unpaidOrders.length">
+    <svg tmIcon="truck"></svg>
+    <span>{{ unpaidOrders.length }} facture(s) fournisseur livrée(s) sans demande de paiement :
+      <ng-container *ngFor="let order of unpaidOrders; let last = last"><button type="button" class="link-btn" (click)="newRequest(order)">{{ order.numero }} ({{ order.total | fcfa }})</button><ng-container *ngIf="!last">, </ng-container></ng-container>
+    </span>
+  </div>
+
+  <div class="segmented mt" style="margin-bottom: 18px">
+    <button type="button" [class.is-active]="tab === 'mouvements'" (click)="tab = 'mouvements'">Mouvements</button>
+    <button type="button" [class.is-active]="tab === 'paiements'" (click)="tab = 'paiements'">Demandes de paiement</button>
+    <button type="button" [class.is-active]="tab === 'budgets'" (click)="tab = 'budgets'">Budgets du mois</button>
+  </div>
+
+  <section class="card card--flush" *ngIf="tab === 'mouvements'">
+    <div class="table-wrap">
+      <table class="table">
+        <thead><tr><th>Date</th><th>Libellé</th><th>Catégorie</th><th>Compte</th><th>Saisi par</th><th class="right">Montant</th></tr></thead>
+        <tbody>
+          <tr *ngFor="let movement of movements">
+            <td>{{ movement.date | relative }}</td>
+            <td class="strong">{{ movement.libelle }}</td>
+            <td>{{ movement.categorie }}</td>
+            <td>{{ accountName(movement.compteId) }}</td>
+            <td>{{ movement.auteurId | userName }}</td>
+            <td class="right num strong" [style.color]="movement.sens === 'entree' ? 'var(--okok-700)' : 'var(--ink-900)'">{{ movement.sens === 'entree' ? '+' : '−' }} {{ movement.montant | fcfa }}</td>
+          </tr>
+          <tr *ngIf="!movements.length"><td colspan="6" class="table-empty">Aucun mouvement.</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section class="card card--flush" *ngIf="tab === 'paiements'">
+    <div class="table-wrap">
+      <table class="table">
+        <thead><tr><th>N°</th><th>Bénéficiaire</th><th>Objet</th><th>Préparée par</th><th class="right">Montant</th><th>Statut</th><th></th></tr></thead>
+        <tbody>
+          <tr *ngFor="let request of finance.requests">
+            <td class="mono strong">{{ request.numero }}</td>
+            <td class="strong">{{ request.beneficiaire }}</td>
+            <td>{{ request.objet }}<br><small class="muted" *ngIf="request.motifRejet">Rejet : {{ request.motifRejet }}</small></td>
+            <td>{{ request.creePar | userName }}<br><small class="muted">{{ request.creeLe | relative }}</small></td>
+            <td class="right num strong">{{ request.montant | fcfa }}</td>
+            <td><span class="badge" [ngClass]="badge(request.statut)">{{ statusLabels[request.statut] }}</span></td>
+            <td class="right">
+              <button type="button" class="btn btn-success btn-xs" *ngIf="request.statut === 'approuvee' && auth.can('tresorerie:gerer')" (click)="pay(request)">Payer</button>
+              <button type="button" class="btn btn-dark btn-xs" *ngIf="request.statut === 'en_validation' && auth.can('tresorerie:valider')" (click)="approve(request)">Autoriser</button>
+            </td>
+          </tr>
+          <tr *ngIf="!finance.requests.length"><td colspan="7" class="table-empty">Aucune demande de paiement.</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section class="card card--flush" *ngIf="tab === 'budgets'">
+    <div class="budget-row" *ngFor="let budget of monthBudgets">
+      <div>
+        <strong>{{ budget.categorie }}</strong>
+        <div><span class="badge" [ngClass]="budget.statut === 'valide' ? 'badge--success' : 'badge--warning'">{{ budget.statut === 'valide' ? 'Validé' : 'En attente de validation' }}</span></div>
+      </div>
+      <div>
+        <div class="progress" [class.progress--danger]="usage(budget) > 100" [class.progress--success]="usage(budget) <= 80"><i [style.width.%]="usage(budget) > 100 ? 100 : usage(budget)"></i></div>
+        <div class="budget-meta"><span class="num">{{ finance.spent(budget) | fcfa }} dépensés</span><span class="num" [class.over]="usage(budget) > 100">{{ usage(budget) | number:'1.0-0' }} %{{ usage(budget) > 100 ? ' — dépassement' : '' }}</span></div>
+      </div>
+      <strong class="num">{{ budget.montantPrevu | fcfa }}</strong>
+    </div>
+    <tm-empty *ngIf="!monthBudgets.length" icon="wallet" title="Aucun budget ce mois-ci" text="Proposez un budget par catégorie de dépense."></tm-empty>
+  </section>
+</div>
+
+<tm-modal *ngIf="movementForm" title="Mouvement de trésorerie" kicker="Saisie" (closed)="movementForm = null">
+  <form class="form" id="movement-form" (ngSubmit)="saveMovement()">
+    <div class="segmented">
+      <button type="button" [class.is-active]="movementForm.sens === 'entree'" (click)="movementForm.sens = 'entree'">Entrée</button>
+      <button type="button" [class.is-active]="movementForm.sens === 'sortie'" (click)="movementForm.sens = 'sortie'">Sortie</button>
+    </div>
+    <div class="form-grid">
+      <label class="field"><span>Compte</span><select class="select" name="compte" [(ngModel)]="movementForm.compteId"><option *ngFor="let account of finance.accounts" [value]="account.id">{{ account.libelle }}</option></select></label>
+      <label class="field"><span>Montant (FCFA)</span><input class="input num" type="number" min="1" name="montant" [(ngModel)]="movementForm.montant" required></label>
+      <label class="field span-2"><span>Catégorie</span><select class="select" name="categorie" [(ngModel)]="movementForm.categorie"><option *ngFor="let category of categories" [value]="category">{{ category }}</option><option value="Dépôt des recettes">Dépôt des recettes</option></select></label>
+      <label class="field span-2"><span>Libellé</span><input class="input" name="libelle" [(ngModel)]="movementForm.libelle" placeholder="Ex. Facture eau — octobre" required></label>
+    </div>
+    <p class="muted small">Une écriture comptable en brouillon sera générée pour contrôle par le Comptable.</p>
+  </form>
+  <div modal-footer>
+    <button type="button" class="btn btn-ghost" (click)="movementForm = null">Annuler</button>
+    <button type="submit" form="movement-form" class="btn btn-primary">Enregistrer</button>
+  </div>
+</tm-modal>
+
+<tm-modal *ngIf="requestForm" title="Demande de paiement" kicker="Règlement" (closed)="requestForm = null">
+  <form class="form" id="request-form" (ngSubmit)="saveRequest()">
+    <label class="field" *ngIf="unpaidOrders.length || requestForm.commandeId">
+      <span>Rattacher à une commande livrée</span>
+      <select class="select" name="commande" [ngModel]="requestForm.commandeId" (ngModelChange)="linkOrder($event)">
+        <option value="">— Aucune —</option>
+        <option *ngFor="let order of unpaidOrders" [value]="order.id">{{ order.numero }} · {{ supplierName(order) }} · {{ order.total | fcfa }}</option>
+      </select>
+    </label>
+    <div class="form-grid">
+      <label class="field"><span>Bénéficiaire</span><input class="input" name="beneficiaire" [(ngModel)]="requestForm.beneficiaire" required></label>
+      <label class="field"><span>Montant (FCFA)</span><input class="input num" type="number" min="1" name="montant" [(ngModel)]="requestForm.montant" required></label>
+      <label class="field span-2"><span>Objet</span><input class="input" name="objet" [(ngModel)]="requestForm.objet" required></label>
+      <label class="field"><span>Catégorie</span><select class="select" name="categorie" [(ngModel)]="requestForm.categorie"><option *ngFor="let category of categories" [value]="category">{{ category }}</option></select></label>
+      <label class="field"><span>Compte débité</span><select class="select" name="compte" [(ngModel)]="requestForm.compteId"><option *ngFor="let account of finance.accounts" [value]="account.id">{{ account.libelle }}</option></select></label>
+    </div>
+    <div class="alert" [ngClass]="(requestForm.montant || 0) >= store.state.settings.seuilPaiement ? 'alert--warning' : 'alert--success'">
+      <svg tmIcon="stamp"></svg>
+      <span>{{ (requestForm.montant || 0) >= store.state.settings.seuilPaiement ? 'Au-delà du seuil : validation du Manager requise avant paiement.' : 'Sous le seuil : paiement exécutable immédiatement après création.' }}</span>
+    </div>
+  </form>
+  <div modal-footer>
+    <button type="button" class="btn btn-ghost" (click)="requestForm = null">Annuler</button>
+    <button type="submit" form="request-form" class="btn btn-primary">Créer la demande</button>
+  </div>
+</tm-modal>
+
+<tm-modal *ngIf="budgetForm" title="Proposer un budget" kicker="Budgets" (closed)="budgetForm = null">
+  <form class="form" id="budget-form" (ngSubmit)="saveBudget()">
+    <div class="form-grid">
+      <label class="field"><span>Catégorie</span><select class="select" name="categorie" [(ngModel)]="budgetForm.categorie"><option *ngFor="let category of categories" [value]="category">{{ category }}</option></select></label>
+      <label class="field"><span>Période</span><input class="input" type="month" name="periode" [(ngModel)]="budgetForm.periode" required></label>
+      <label class="field span-2"><span>Montant prévu (FCFA)</span><input class="input num" type="number" min="1" name="montant" [(ngModel)]="budgetForm.montant" required></label>
+    </div>
+    <p class="muted small">Le budget devient effectif après validation par le Manager. Une révision remet le budget en attente.</p>
+  </form>
+  <div modal-footer>
+    <button type="button" class="btn btn-ghost" (click)="budgetForm = null">Annuler</button>
+    <button type="submit" form="budget-form" class="btn btn-primary">Proposer</button>
+  </div>
+</tm-modal>

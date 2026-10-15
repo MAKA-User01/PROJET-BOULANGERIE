@@ -1,0 +1,127 @@
+<div class="page">
+  <header class="page-header">
+    <div>
+      <p class="eyebrow">Validations</p>
+      <h1 class="page-title">Opérations <em>à arbitrer.</em></h1>
+      <p class="page-lead">Ce qui dépasse les seuils passe par vous. Personne ne peut valider sa propre demande : la séparation des tâches est appliquée et tracée.</p>
+    </div>
+    <span class="badge badge--crust badge--plain" style="height: 34px; padding: 0 14px; font-size: 13px">{{ total }} en attente</span>
+  </header>
+
+  <div class="card all-clear" *ngIf="total === 0">
+    <span class="kpi-icon kpi-icon--okok"><svg tmIcon="check"></svg></span>
+    <div><strong>Tout est à jour.</strong><p class="muted">Aucune opération n’attend votre validation pour le moment.</p></div>
+  </div>
+
+  <div class="stack">
+    <section class="card card--flush" *ngIf="auth.can('achats:valider')">
+      <header class="card-header"><div class="section-head"><h2 class="card-title">Commandes fournisseurs</h2><span class="count" [class.count--zero]="!orders.length">{{ orders.length }}</span></div></header>
+      <div class="queue">
+        <div class="queue-item" *ngFor="let order of orders">
+          <span class="kpi-icon kpi-icon--indigo"><svg tmIcon="cart"></svg></span>
+          <div class="queue-body">
+            <strong>{{ order.numero }} · {{ supplierName(order) }}</strong>
+            <p><ng-container *ngFor="let line of order.lignes; let last = last">{{ line.quantite }} {{ line.libelle }}<ng-container *ngIf="!last">, </ng-container></ng-container></p>
+            <div class="queue-meta"><span>Préparée par {{ order.creePar | userName }}</span><span>Soumise {{ order.soumisLe | relative }}</span><span class="queue-amount num">{{ order.total | fcfa }}</span></div>
+          </div>
+          <div class="queue-actions">
+            <button type="button" class="btn btn-outline btn-sm" (click)="rejectOrder(order)">Rejeter</button>
+            <button type="button" class="btn btn-success btn-sm" (click)="approveOrder(order)"><svg tmIcon="check"></svg> Approuver</button>
+          </div>
+        </div>
+        <p class="muted small" style="padding: 0 22px 18px" *ngIf="!orders.length">Aucune commande au-dessus du seuil de {{ rules.seuilAchat | fcfa }}.</p>
+      </div>
+    </section>
+
+    <section class="card card--flush" *ngIf="auth.can('stocks:valider')">
+      <header class="card-header"><div class="section-head"><h2 class="card-title">Ajustements de stock</h2><span class="count" [class.count--zero]="!movements.length">{{ movements.length }}</span></div></header>
+      <div class="queue">
+        <div class="queue-item" *ngFor="let movement of movements">
+          <span class="kpi-icon kpi-icon--gold"><svg tmIcon="box"></svg></span>
+          <div class="queue-body">
+            <strong>{{ movementLabel(movement) }} · {{ productName(movement) }}</strong>
+            <p>« {{ movement.motif }} »</p>
+            <div class="queue-meta"><span>Déclaré par {{ movement.auteurId | userName }}</span><span>{{ movement.date | relative }}</span><span class="queue-amount num">{{ movement.quantite > 0 ? '+' : '' }}{{ movement.quantite }} {{ unit(movement) }}</span></div>
+          </div>
+          <div class="queue-actions">
+            <button type="button" class="btn btn-outline btn-sm" (click)="rejectMovement(movement)">Refuser</button>
+            <button type="button" class="btn btn-success btn-sm" (click)="approveMovement(movement)"><svg tmIcon="check"></svg> Appliquer</button>
+          </div>
+        </div>
+        <p class="muted small" style="padding: 0 22px 18px" *ngIf="!movements.length">Aucun écart supérieur à {{ rules.seuilEcartStock }} unités à valider.</p>
+      </div>
+    </section>
+
+    <section class="card card--flush" *ngIf="auth.can('tresorerie:valider')">
+      <header class="card-header"><div class="section-head"><h2 class="card-title">Paiements & budgets</h2><span class="count" [class.count--zero]="!(requests.length + budgets.length)">{{ requests.length + budgets.length }}</span></div></header>
+      <div class="queue">
+        <div class="queue-item" *ngFor="let request of requests">
+          <span class="kpi-icon kpi-icon--folere"><svg tmIcon="coin"></svg></span>
+          <div class="queue-body">
+            <strong>{{ request.numero }} · {{ request.beneficiaire }}</strong>
+            <p>{{ request.objet }} — {{ request.categorie }}</p>
+            <div class="queue-meta"><span>Préparée par {{ request.creePar | userName }}</span><span>{{ request.creeLe | relative }}</span><span class="queue-amount num">{{ request.montant | fcfa }}</span></div>
+          </div>
+          <div class="queue-actions">
+            <button type="button" class="btn btn-outline btn-sm" (click)="rejectRequest(request)">Rejeter</button>
+            <button type="button" class="btn btn-success btn-sm" (click)="approveRequest(request)"><svg tmIcon="check"></svg> Autoriser</button>
+          </div>
+        </div>
+        <div class="queue-item" *ngFor="let budget of budgets">
+          <span class="kpi-icon kpi-icon--okok"><svg tmIcon="wallet"></svg></span>
+          <div class="queue-body">
+            <strong>Budget {{ budget.categorie }} · {{ budget.periode }}</strong>
+            <p>Proposé par {{ budget.creePar | userName }}</p>
+            <div class="queue-meta"><span class="queue-amount num">{{ budget.montantPrevu | fcfa }}</span></div>
+          </div>
+          <div class="queue-actions"><button type="button" class="btn btn-success btn-sm" (click)="approveBudget(budget)"><svg tmIcon="check"></svg> Valider le budget</button></div>
+        </div>
+        <p class="muted small" style="padding: 0 22px 18px" *ngIf="!requests.length && !budgets.length">Aucun paiement ni budget en attente.</p>
+      </div>
+    </section>
+
+    <section class="card card--flush" *ngIf="auth.can('ventes:superviser')">
+      <header class="card-header"><div class="section-head"><h2 class="card-title">Annulations de ventes</h2><span class="count" [class.count--zero]="!cancellations.length">{{ cancellations.length }}</span></div></header>
+      <div class="queue">
+        <div class="queue-item" *ngFor="let sale of cancellations">
+          <span class="kpi-icon"><svg tmIcon="receipt"></svg></span>
+          <div class="queue-body">
+            <strong>{{ sale.numero }} · {{ sale.caissierId | userName }}</strong>
+            <p>« {{ sale.motifAnnulation }} »</p>
+            <div class="queue-meta"><span>{{ sale.date | relative }}</span><span class="queue-amount num">{{ sale.total | fcfa }}</span></div>
+          </div>
+          <div class="queue-actions">
+            <button type="button" class="btn btn-outline btn-sm" (click)="decideSale(sale, false)">Refuser</button>
+            <button type="button" class="btn btn-dark btn-sm" (click)="decideSale(sale, true)"><svg tmIcon="check"></svg> Annuler la vente</button>
+          </div>
+        </div>
+        <p class="muted small" style="padding: 0 22px 18px" *ngIf="!cancellations.length">Aucune demande d’annulation.</p>
+      </div>
+    </section>
+
+    <form class="card" *tmCan="'regles:gerer'" (ngSubmit)="saveRules()">
+      <header class="card-header">
+        <div><p class="card-kicker">Règles métier</p><h2 class="card-title">Seuils de validation</h2><p class="card-subtitle">Au-delà de ces seuils, l’opération attend votre accord. Chaque modification est journalisée.</p></div>
+      </header>
+      <div class="form-grid">
+        <label class="field"><span>Commande d’achat (FCFA)</span><input class="input num" type="number" min="0" step="5000" name="seuilAchat" [(ngModel)]="rules.seuilAchat"></label>
+        <label class="field"><span>Demande de paiement (FCFA)</span><input class="input num" type="number" min="0" step="5000" name="seuilPaiement" [(ngModel)]="rules.seuilPaiement"></label>
+        <label class="field"><span>Écart de stock (unités)</span><input class="input num" type="number" min="1" name="seuilEcartStock" [(ngModel)]="rules.seuilEcartStock"></label>
+        <label class="field"><span>Remise maximale en caisse (%)</span><input class="input num" type="number" min="0" max="50" name="remiseMaxPct" [(ngModel)]="rules.remiseMaxPct"></label>
+        <label class="check span-2"><input type="checkbox" name="separation" [(ngModel)]="rules.separationTaches"> Séparation des tâches : interdire l’approbation de ses propres demandes</label>
+      </div>
+      <div class="row mt"><button type="submit" class="btn btn-dark">Enregistrer les règles</button></div>
+    </form>
+  </div>
+</div>
+
+<tm-modal *ngIf="rejection" [title]="rejection.title" kicker="Motif obligatoire" [subtitle]="rejection.reference" (closed)="rejection = null">
+  <label class="field">
+    <span>Motif communiqué au demandeur</span>
+    <textarea class="textarea" [(ngModel)]="motif" placeholder="Ex. Quantité trop élevée, renégocier le prix unitaire…" autofocus></textarea>
+  </label>
+  <div modal-footer>
+    <button type="button" class="btn btn-ghost" (click)="rejection = null">Annuler</button>
+    <button type="button" class="btn btn-danger" [disabled]="!motif.trim()" (click)="confirmRejection()">Confirmer le refus</button>
+  </div>
+</tm-modal>
