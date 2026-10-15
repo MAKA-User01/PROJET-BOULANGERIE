@@ -39,8 +39,8 @@
   &:disabled { opacity: .45; cursor: not-allowed; }
 }
 .tile-icon { width: 40px; height: 40px; display: grid; place-items: center; border-radius: 12px; background: var(--gold-50); color: var(--gold-700); }
-.tile-icon--V { background: var(--crust-50); color: var(--crust-600); }
-.tile-icon--P { background: var(--folere-50); color: var(--folere-500); }
+.tile-icon--viennoiserie { background: var(--crust-50); color: var(--crust-600); }
+.tile-icon--patisserie { background: var(--folere-50); color: var(--folere-500); }
 .tile-foot { width: 100%; display: flex; align-items: baseline; justify-content: space-between; gap: 6px;
   small { color: var(--ink-400); font-size: 11.5px; font-weight: 600; }
   small.low { color: var(--gold-700); }
@@ -48,9 +48,9 @@
 .tile-price { font-size: 14px; font-weight: 800; }
 .tile-qty { position: absolute; top: 12px; right: 12px; min-width: 26px; height: 26px; display: grid; place-items: center; padding: 0 7px; border-radius: 99px; background: var(--crust-500); color: #fff; font-size: 13px; font-weight: 800; animation: pop .2s var(--ease); }
 
-.ticket { position: sticky; top: 68px; height: calc(100vh - 68px); display: flex; flex-direction: column; border-left: 1px solid var(--line); background: var(--surface); }
+.ticket { position: sticky; top: 68px; height: calc(100vh - 68px); display: flex; flex-direction: column; overflow-y: auto; border-left: 1px solid var(--line); background: var(--surface); }
 .ticket-head { display: flex; align-items: flex-start; justify-content: space-between; padding: 22px 22px 14px; }
-.ticket-lines { flex: 1; overflow-y: auto; padding: 0 22px; }
+.ticket-lines { flex: 1 1 auto; min-height: 90px; overflow-y: auto; padding: 0 22px; }
 .ticket-line { display: flex; align-items: center; gap: 12px; padding: 12px 0; border-bottom: 1px dashed var(--line); animation: rise .2s var(--ease); }
 .ticket-line-body { flex: 1; min-width: 0;
   strong { display: block; overflow: hidden; font-size: 13.5px; text-overflow: ellipsis; white-space: nowrap; }
@@ -66,7 +66,7 @@
 .ticket-empty { display: flex; flex-direction: column; align-items: center; gap: 10px; padding: 48px 20px; color: var(--ink-400); font-size: 13px; text-align: center;
   .icon { width: 34px; height: 34px; color: var(--ink-300); }
 }
-.ticket-pay { display: flex; flex-direction: column; gap: 14px; padding: 18px 22px 22px; border-top: 1px solid var(--line); background: var(--flour); }
+.ticket-pay { flex-shrink: 0; display: flex; flex-direction: column; gap: 12px; padding: 16px 22px 18px; border-top: 1px solid var(--line); background: var(--flour); }
 .remise label { font-size: 13.5px; font-weight: 700; }
 .remise-input { width: 96px; .suffix { position: absolute; right: 12px; color: var(--ink-400); font-weight: 700; } .input { padding-right: 28px; } }
 .error-text { margin-top: -8px; color: var(--danger-500); font-size: 12px; font-weight: 600; }

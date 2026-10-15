@@ -76,7 +76,7 @@
       <div class="product-grid">
         <button type="button" class="product-tile" *ngFor="let product of products" (click)="add(product)" [disabled]="product.stock - inCart(product) <= 0" [class.in-cart]="inCart(product)">
           <span class="tile-qty" *ngIf="inCart(product)">{{ inCart(product) }}</span>
-          <span class="tile-icon" [ngClass]="'tile-icon--' + product.categorie.charAt(0)"><svg tmIcon="bread"></svg></span>
+          <span class="tile-icon" [ngClass]="'tile-icon--' + (product.categorie === 'Pains' ? 'pain' : product.categorie === 'Viennoiseries' ? 'viennoiserie' : 'patisserie')"><svg tmIcon="bread"></svg></span>
           <strong>{{ product.libelle }}</strong>
           <span class="tile-foot">
             <span class="tile-price num">{{ product.prix | fcfa }}</span>

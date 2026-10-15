@@ -48,7 +48,7 @@ export class IconComponent {
     .logo-mark { width: 42px; height: 42px; flex: 0 0 auto; filter: drop-shadow(0 6px 14px rgba(196, 87, 27, .35)); }
     .logo-copy { display: flex; flex-direction: column; line-height: 1; }
     .logo-copy strong { font-family: var(--font-display); font-size: 21px; font-weight: 700; letter-spacing: .14em; }
-    .logo-copy small { margin-top: 6px; opacity: .6; font-size: 10px; font-weight: 700; letter-spacing: .2em; text-transform: uppercase; }
+    .logo-copy small { margin-top: 6px; opacity: .6; font-size: 9.5px; font-weight: 700; letter-spacing: .14em; text-transform: uppercase; white-space: nowrap; }
   `]
 })
 export class LogoComponent {
