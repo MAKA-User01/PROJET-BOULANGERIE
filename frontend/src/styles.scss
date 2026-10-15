@@ -1,0 +1,35 @@
+:root {
+  color-scheme: light;
+  --ink: #292722;
+  --muted: #939087;
+  --line: #eeece7;
+  --canvas: #f8f7f4;
+  --white: #fff;
+  --orange: #c86642;
+  --orange-dark: #a84e31;
+  --green: #70846d;
+  --sidebar: #292722;
+}
+
+* { box-sizing: border-box; }
+html, body { min-width: 320px; min-height: 100%; margin: 0; }
+body {
+  background: var(--canvas);
+  color: var(--ink);
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  font-size: 13px;
+  -webkit-font-smoothing: antialiased;
+}
+button, input, select { font: inherit; }
+button { color: inherit; }
+button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible {
+  outline: 3px solid rgba(200, 102, 66, .32);
+  outline-offset: 2px;
+}
+::selection { background: #ead3c9; }
+.icon-library { position: absolute; width: 0; height: 0; overflow: hidden; }
+.icon { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; flex: 0 0 auto; }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { scroll-behavior: auto !important; animation-duration: .01ms !important; transition-duration: .01ms !important; }
+}
